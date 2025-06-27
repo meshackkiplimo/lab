@@ -2,12 +2,18 @@ require('dotenv').config();
 const axios = require('axios');
 
 class MpesaService {
+
+ 
+
   // Generate OAuth access token
   static async getAccessToken() {
+
+    
     const consumerKey = process.env.MPESA_CONSUMER_KEY;
     const consumerSecret = process.env.MPESA_CONSUMER_SECRET;
     const url = 'https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials';
     const auth = Buffer.from(`${consumerKey}:${consumerSecret}`).toString('base64');
+    console.log('Fetching access token with:', { consumerKey, consumerSecret });
 
     try {
       const response = await axios.get(url, {
