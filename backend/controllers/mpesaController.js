@@ -1,3 +1,4 @@
+const Payment = require('../models/payment');
 const MpesaService = require('../services/mpesaService');
 
 class MpesaController {

@@ -30,6 +30,9 @@ router.post('/login', async (req, res) => {
       token,
       user: { email: user.email, role: user.role },
     });
+
+    // console the token for debugging
+    console.log('Generated JWT Token:', token);
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ message: 'Login failed' });

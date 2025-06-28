@@ -2,13 +2,21 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
 
 export default function MpesaPayment() {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [phoneNumber, setPhoneNumber] = useState('');
 
   const handlePayment = async (e) => {
     e.preventDefault();
+
+    if (!user) {
+      toast.error('Please log in first.');
+      navigate('/login');
+      return;
+    }
 
     if (!phoneNumber) {
       toast.error('Phone number is required.');
@@ -21,9 +29,18 @@ export default function MpesaPayment() {
 
     try {
       toast.loading('⏳ Sending STK push to your phone...');
-      const res = await axios.post('http://localhost:5000/api/mpesa/initiate', {
-        phoneNumber,
-      });
+      const token = localStorage.getItem('token'); // Retrieve token
+      if (!token) {
+        toast.error('Please log in first.');
+        navigate('/login');
+        return;
+      }
+
+      const res = await axios.post(
+        'http://localhost:5000/api/mpesa/initiate',
+        { phoneNumber },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
       toast.dismiss();
 
@@ -35,7 +52,7 @@ export default function MpesaPayment() {
       }
     } catch (err) {
       toast.dismiss();
-      toast.error(`🚫 Error initiating payment: ${err.response?.data?.error || err.message}`);
+      toast.error(`🚫 Error: ${err.response?.data?.error || err.message}`);
     }
   };
 
