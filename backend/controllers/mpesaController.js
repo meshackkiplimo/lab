@@ -13,6 +13,13 @@ class MpesaController {
     try {
       console.log('Initiating payment with:', { phoneNumber, fixedAmount, transactionDesc });
       const response = await MpesaService.initiateStkPush(phoneNumber, fixedAmount, transactionDesc);
+      const payment = new Payment({
+        userId: req.user.id,
+        amount: fixedAmount,
+        method: 'Mpesa',
+        status: 'pending',
+      });
+      await payment.save();
       console.log('Payment initiation response:', response);
       return res.status(200).json({ success: true, data: response });
     } catch (error) {
