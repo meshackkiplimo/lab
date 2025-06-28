@@ -1,0 +1,1 @@
+export const Apidomain = 'http://localhost:5000/api';

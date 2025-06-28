@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
+import { Apidomain } from '../utils/ApiDomain';
 
 export default function MpesaPayment() {
   const { user } = useAuth();
@@ -37,7 +38,7 @@ export default function MpesaPayment() {
       }
 
       const res = await axios.post(
-        'http://localhost:5000/api/mpesa/initiate',
+        `${Apidomain}/mpesa/initiate`,
         { phoneNumber },
         { headers: { Authorization: `Bearer ${token}` } }
       );

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { Apidomain } from '../utils/ApiDomain';
 
 const ManageInventory = () => {
   const [inventory, setInventory] = useState([]);
@@ -8,8 +9,7 @@ const ManageInventory = () => {
     const fetchApplications = async () => {
       try {
         const res = await axios.get(
-          
-          '/api/applications',
+       `${Apidomain}/applications`,
           {
             headers: {
               Authorization: `Bearer ${localStorage.getItem('token')}`,
