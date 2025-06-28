@@ -1,28 +1,37 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 export default function Application() {
   const { laptopId } = useParams();
+  const { user } = useAuth();
   const [laptop, setLaptop] = useState(null);
   const [error, setError] = useState(null);
   const [year, setYear] = useState('');
-  const [email, setEmail] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
-    const role = localStorage.getItem('role');
-    const storedEmail = localStorage.getItem('email');
-
-    if (!role || role !== 'student') {
+    if (!user || user.role !== 'student') {
       navigate('/login');
       return;
     }
 
-    if (storedEmail) {
-      setEmail(storedEmail);
+    if (user.year) {
+      setYear(String(user.year)); // auto-fill year if available
     }
 
-    fetch(`http://localhost:5000/api/laptops/${laptopId}`)
+    const token = localStorage.getItem('token');
+    if (!token) {
+      navigate('/login');
+      return;
+    }
+
+    fetch(`http://localhost:5000/api/laptops/${laptopId}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    })
       .then(res => {
         if (!res.ok) throw new Error('Laptop not found');
         return res.json();
@@ -33,15 +42,10 @@ export default function Application() {
         setLaptop(null);
         setError('❌ Laptop not found or has been removed.');
       });
-  }, [laptopId, navigate]);
+  }, [laptopId, navigate, user]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-
-    if (!email.trim()) {
-      alert('❌ Email is required.');
-      return;
-    }
 
     if (!year) {
       alert('❌ Please select your academic year.');
@@ -53,25 +57,40 @@ export default function Application() {
       return;
     }
 
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('❌ Please log in first.');
+      navigate('/login');
+      return;
+    }
+
     const applicationData = {
       laptopId,
-      email,
-      year,
     };
 
     fetch('http://localhost:5000/api/applications/apply', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify(applicationData),
     })
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) {
+          return res.json().then(err => {
+            throw new Error(err.message || 'Failed to submit application');
+          });
+        }
+        return res.json();
+      })
       .then(data => {
         alert('✅ Application submitted successfully!');
         navigate('/mpesa');
       })
       .catch(err => {
-        console.error(err);
-        alert('❌ Failed to submit application. Try again later.');
+        console.error('Application submission error:', err);
+        alert(`❌ ${err.message || 'Failed to submit application. Try again later.'}`);
       });
   };
 
@@ -119,28 +138,9 @@ export default function Application() {
                 padding: '0.7rem',
                 border: '1px solid #cbd5e1',
                 borderRadius: '6px',
-                background: '#f1f5f9'
+                background: '#f1f5f9',
+                color: 'black'
               }}
-            />
-          </div>
-
-          <div style={{ marginBottom: '1.2rem' }}>
-            <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.4rem' }}>
-              Email:
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '0.7rem',
-                border: '1px solid #cbd5e1',
-                borderRadius: '6px',
-                background: '#ffffff'
-              }}
-              placeholder="Enter your email"
-              required
             />
           </div>
 
@@ -181,7 +181,7 @@ export default function Application() {
           }}
             onMouseOver={e => e.currentTarget.style.background = '#059669'}
             onMouseOut={e => e.currentTarget.style.background = '#10b981'}>
-            ✅ Submit Application and proceed to payment 
+            ✅ Submit Application and proceed to payment
           </button>
         </form>
       )}
