@@ -11,6 +11,8 @@ import Layout from './components/layout';
 import NotFound from './pages/notfound';
 import Clearance from './pages/clearance';
 import ManageInventory from './pages/Manage-Inventory';
+import UserStats from './pages/userStats.jsx';
+
 
 
 export default function App() {
@@ -85,6 +87,16 @@ export default function App() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/user-stats"
+        element={
+          <ProtectedRoute allowedRoles={['student']}>
+            <Layout>
+              <UserStats />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
        <Route
         path="/Manage-Inventory"
         element={
@@ -105,7 +117,7 @@ export default function App() {
           </ProtectedRoute>
         }
       />
-
+       
 
       {/* ❌ Catch-All */}
       <Route path="*" element={<NotFound />} />

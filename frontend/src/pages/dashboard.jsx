@@ -33,6 +33,7 @@ const styles = {
 export default function DashboardLayout() {
   const { user, logout } = useAuth();
   const isAdmin = user?.role === 'admin';
+  const isUser = user?.role === 'student' || user?.role === 'user';
   const [stats, setStats] = useState(null);
   const [paymentProgress, setPaymentProgress] = useState(0);
   const [clearanceStatus, setClearanceStatus] = useState('Pending');
@@ -121,6 +122,10 @@ export default function DashboardLayout() {
               <Link to="/Manage-Inventory" style={styles.navLink}>📦 Manage Inventory</Link>
             </>
           )}
+         {  isUser &&(
+           <Link to="/user-stats" style={styles.navLink}>User stats</Link>
+
+         )}
         </nav>
       </aside>
 
