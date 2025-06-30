@@ -39,7 +39,7 @@ export default function MpesaPayment() {
 
       const res = await axios.post(
         `${Apidomain}/mpesa/initiate`,
-        { phoneNumber },
+        { phoneNumber},
         { headers: { Authorization: `Bearer ${token}` } }
       );
 

@@ -10,10 +10,11 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your_fallback_secret';
 // REGISTER
 router.post('/register', async (req, res) => {
   try {
-    const { email, password, role } = req.body;
+    const { email,firstName,lastName, password, role } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ message: 'Email and password are required.' });
+    if (!email || !password || !firstName || !lastName) {
+      return res.status(400).json({ message: 'Email, first name, last name and password are required.' });
+     
     }
 
     // Normalize email and check if user exists
@@ -25,6 +26,8 @@ router.post('/register', async (req, res) => {
 
     // Create and save new user (password is hashed in model)
     user = new User({
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
       email: normalizedEmail,
       password,
       role: ['student', 'admin'].includes(role) ? role : 'student',
@@ -38,7 +41,7 @@ router.post('/register', async (req, res) => {
 
     res.status(201).json({
       token,
-      user: { email: user.email, role: user.role },
+      user: { email: user.email, role: user.role, firstName: user.firstName, lastName: user.lastName },
     });
   } catch (error) {
     console.error('[REGISTER ERROR]', error);

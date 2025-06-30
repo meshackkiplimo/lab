@@ -5,17 +5,18 @@ import Layout from '../components/layout';
 import { useAuth } from '../context/authcontext';
 
 export default function Login() {
-  const [role, setRole] = useState('student'); // 'student' or 'admin'
+  const [role, setRole] = useState('student');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
   const navigate = useNavigate();
 
-  const { user, login, logout } = useAuth();
+  const { user, login } = useAuth();
 
   const handleRoleChange = (newRole) => {
     setRole(newRole);
@@ -24,6 +25,8 @@ export default function Login() {
     setEmail('');
     setPassword('');
     setConfirmPassword('');
+    setFirstName('');
+    setLastName('');
   };
 
   const handleSubmitLogin = async (e) => {
@@ -47,19 +50,26 @@ export default function Login() {
       return;
     }
     try {
-      await api.post('/auth/register', { email, password, role });
+      await api.post('/auth/register', {
+        firstName,
+        lastName,
+        email,
+        password,
+        role,
+      });
       setSuccess('✅ Registration successful! Please login.');
       setShowRegister(false);
       setEmail('');
       setPassword('');
       setConfirmPassword('');
+      setFirstName('');
+      setLastName('');
       setRole('student');
     } catch (err) {
       setError('❌ Registration failed. Email may already be in use.');
     }
   };
 
-  // If already logged in, redirect to dashboard
   if (user) return <Navigate to="/dashboard" />;
 
   return (
@@ -122,57 +132,25 @@ export default function Login() {
                 </button>
               </div>
 
-              <h2
-                style={{
-                  fontSize: '2.5rem',
-                  fontWeight: '700',
-                  color: '#2c3e50',
-                  marginBottom: '1.5rem',
-                  textAlign: 'center',
-                }}
-              >
+              <h2 style={{ fontSize: '2.5rem', fontWeight: '700', color: '#2c3e50', marginBottom: '1.5rem', textAlign: 'center' }}>
                 {role === 'admin' ? 'Admin' : 'Student'} Login
               </h2>
 
               {error && (
-                <div
-                  style={{
-                    backgroundColor: '#fee2e2',
-                    color: '#b91c1c',
-                    padding: '0.75rem 1rem',
-                    borderRadius: '6px',
-                    marginBottom: '1rem',
-                    textAlign: 'center',
-                    fontSize: '0.9rem',
-                    border: '1px solid #fca5a5',
-                  }}
-                >
+                <div style={{ backgroundColor: '#fee2e2', color: '#b91c1c', padding: '0.75rem 1rem', borderRadius: '6px', marginBottom: '1rem', textAlign: 'center', fontSize: '0.9rem', border: '1px solid #fca5a5' }}>
                   {error}
                 </div>
               )}
 
               {success && (
-                <div
-                  style={{
-                    backgroundColor: '#d1fae5',
-                    color: '#065f46',
-                    padding: '0.75rem 1rem',
-                    borderRadius: '6px',
-                    marginBottom: '1rem',
-                    textAlign: 'center',
-                    fontSize: '0.9rem',
-                    border: '1px solid #34d399',
-                  }}
-                >
+                <div style={{ backgroundColor: '#d1fae5', color: '#065f46', padding: '0.75rem 1rem', borderRadius: '6px', marginBottom: '1rem', textAlign: 'center', fontSize: '0.9rem', border: '1px solid #34d399' }}>
                   {success}
                 </div>
               )}
 
               <form onSubmit={handleSubmitLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <label style={{ marginBottom: '0.5rem', fontWeight: '600', color: '#4b5563' }}>
-                    Email Address
-                  </label>
+                  <label style={{ marginBottom: '0.5rem', fontWeight: '600', color: '#4b5563' }}>Email Address</label>
                   <input
                     type="email"
                     placeholder={`${role}@example.com`}
@@ -185,17 +163,12 @@ export default function Login() {
                       border: '1px solid #cbd5e1',
                       fontSize: '1rem',
                       outline: 'none',
-                      transition: 'border-color 0.3s ease',
                     }}
-                    onFocus={(e) => (e.target.style.borderColor = '#2563eb')}
-                    onBlur={(e) => (e.target.style.borderColor = '#cbd5e1')}
                   />
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <label style={{ marginBottom: '0.5rem', fontWeight: '600', color: '#4b5563' }}>
-                    Password
-                  </label>
+                  <label style={{ marginBottom: '0.5rem', fontWeight: '600', color: '#4b5563' }}>Password</label>
                   <input
                     type="password"
                     placeholder="••••••••"
@@ -208,10 +181,7 @@ export default function Login() {
                       border: '1px solid #cbd5e1',
                       fontSize: '1rem',
                       outline: 'none',
-                      transition: 'border-color 0.3s ease',
                     }}
-                    onFocus={(e) => (e.target.style.borderColor = '#2563eb')}
-                    onBlur={(e) => (e.target.style.borderColor = '#cbd5e1')}
                   />
                 </div>
 
@@ -226,10 +196,7 @@ export default function Login() {
                     borderRadius: '10px',
                     cursor: 'pointer',
                     border: 'none',
-                    transition: 'background-color 0.3s ease',
                   }}
-                  onMouseEnter={(e) => (e.target.style.backgroundColor = '#1e40af')}
-                  onMouseLeave={(e) => (e.target.style.backgroundColor = '#2563eb')}
                 >
                   Log In
                 </button>
@@ -243,6 +210,8 @@ export default function Login() {
                   setEmail('');
                   setPassword('');
                   setConfirmPassword('');
+                  setFirstName('');
+                  setLastName('');
                   setRole('student');
                 }}
                 style={{
@@ -258,57 +227,61 @@ export default function Login() {
             </>
           ) : (
             <>
-              <h2
-                style={{
-                  fontSize: '2.5rem',
-                  fontWeight: '700',
-                  color: '#2c3e50',
-                  marginBottom: '1.5rem',
-                  textAlign: 'center',
-                }}
-              >
+              <h2 style={{ fontSize: '2.5rem', fontWeight: '700', color: '#2c3e50', marginBottom: '1.5rem', textAlign: 'center' }}>
                 Register Account
               </h2>
 
               {error && (
-                <div
-                  style={{
-                    backgroundColor: '#fee2e2',
-                    color: '#b91c1c',
-                    padding: '0.75rem 1rem',
-                    borderRadius: '6px',
-                    marginBottom: '1rem',
-                    textAlign: 'center',
-                    fontSize: '0.9rem',
-                    border: '1px solid #fca5a5',
-                  }}
-                >
+                <div style={{ backgroundColor: '#fee2e2', color: '#b91c1c', padding: '0.75rem 1rem', borderRadius: '6px', marginBottom: '1rem', textAlign: 'center', fontSize: '0.9rem', border: '1px solid #fca5a5' }}>
                   {error}
                 </div>
               )}
 
               {success && (
-                <div
-                  style={{
-                    backgroundColor: '#d1fae5',
-                    color: '#065f46',
-                    padding: '0.75rem 1rem',
-                    borderRadius: '6px',
-                    marginBottom: '1rem',
-                    textAlign: 'center',
-                    fontSize: '0.9rem',
-                    border: '1px solid #34d399',
-                  }}
-                >
+                <div style={{ backgroundColor: '#d1fae5', color: '#065f46', padding: '0.75rem 1rem', borderRadius: '6px', marginBottom: '1rem', textAlign: 'center', fontSize: '0.9rem', border: '1px solid #34d399' }}>
                   {success}
                 </div>
               )}
 
               <form onSubmit={handleSubmitRegister} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <label style={{ marginBottom: '0.5rem', fontWeight: '600', color: '#4b5563' }}>
-                    Email Address
-                  </label>
+                  <label style={{ marginBottom: '0.5rem', fontWeight: '600', color: '#4b5563' }}>First Name</label>
+                  <input
+                    type="text"
+                    placeholder="John"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    required
+                    style={{
+                      padding: '0.75rem 1rem',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '1rem',
+                      outline: 'none',
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <label style={{ marginBottom: '0.5rem', fontWeight: '600', color: '#4b5563' }}>Last Name</label>
+                  <input
+                    type="text"
+                    placeholder="Doe"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    required
+                    style={{
+                      padding: '0.75rem 1rem',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '1rem',
+                      outline: 'none',
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <label style={{ marginBottom: '0.5rem', fontWeight: '600', color: '#4b5563' }}>Email Address</label>
                   <input
                     type="email"
                     placeholder="email@example.com"
@@ -321,17 +294,12 @@ export default function Login() {
                       border: '1px solid #cbd5e1',
                       fontSize: '1rem',
                       outline: 'none',
-                      transition: 'border-color 0.3s ease',
                     }}
-                    onFocus={(e) => (e.target.style.borderColor = '#2563eb')}
-                    onBlur={(e) => (e.target.style.borderColor = '#cbd5e1')}
                   />
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <label style={{ marginBottom: '0.5rem', fontWeight: '600', color: '#4b5563' }}>
-                    Password
-                  </label>
+                  <label style={{ marginBottom: '0.5rem', fontWeight: '600', color: '#4b5563' }}>Password</label>
                   <input
                     type="password"
                     placeholder="••••••••"
@@ -344,17 +312,12 @@ export default function Login() {
                       border: '1px solid #cbd5e1',
                       fontSize: '1rem',
                       outline: 'none',
-                      transition: 'border-color 0.3s ease',
                     }}
-                    onFocus={(e) => (e.target.style.borderColor = '#2563eb')}
-                    onBlur={(e) => (e.target.style.borderColor = '#cbd5e1')}
                   />
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <label style={{ marginBottom: '0.5rem', fontWeight: '600', color: '#4b5563' }}>
-                    Confirm Password
-                  </label>
+                  <label style={{ marginBottom: '0.5rem', fontWeight: '600', color: '#4b5563' }}>Confirm Password</label>
                   <input
                     type="password"
                     placeholder="••••••••"
@@ -367,17 +330,12 @@ export default function Login() {
                       border: '1px solid #cbd5e1',
                       fontSize: '1rem',
                       outline: 'none',
-                      transition: 'border-color 0.3s ease',
                     }}
-                    onFocus={(e) => (e.target.style.borderColor = '#2563eb')}
-                    onBlur={(e) => (e.target.style.borderColor = '#cbd5e1')}
                   />
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <label style={{ marginBottom: '0.5rem', fontWeight: '600', color: '#4b5563' }}>
-                    Select Role
-                  </label>
+                  <label style={{ marginBottom: '0.5rem', fontWeight: '600', color: '#4b5563' }}>Select Role</label>
                   <select
                     value={role}
                     onChange={(e) => setRole(e.target.value)}
@@ -387,10 +345,7 @@ export default function Login() {
                       border: '1px solid #cbd5e1',
                       fontSize: '1rem',
                       outline: 'none',
-                      transition: 'border-color 0.3s ease',
                     }}
-                    onFocus={(e) => (e.target.style.borderColor = '#2563eb')}
-                    onBlur={(e) => (e.target.style.borderColor = '#cbd5e1')}
                   >
                     <option value="student">Student</option>
                     <option value="admin">Admin</option>
@@ -408,10 +363,7 @@ export default function Login() {
                     borderRadius: '10px',
                     cursor: 'pointer',
                     border: 'none',
-                    transition: 'background-color 0.3s ease',
                   }}
-                  onMouseEnter={(e) => (e.target.style.backgroundColor = '#1e40af')}
-                  onMouseLeave={(e) => (e.target.style.backgroundColor = '#2563eb')}
                 >
                   Register
                 </button>
@@ -425,6 +377,8 @@ export default function Login() {
                   setEmail('');
                   setPassword('');
                   setConfirmPassword('');
+                  setFirstName('');
+                  setLastName('');
                   setRole('student');
                 }}
                 style={{
