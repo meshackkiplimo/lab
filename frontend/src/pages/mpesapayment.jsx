@@ -23,6 +23,7 @@ export default function MpesaPayment() {
       toast.error('Phone number is required.');
       return;
     }
+
     if (!/^2547\d{8}$/.test(phoneNumber)) {
       toast.error('📱 Enter a valid phone number (e.g., 254712345678)');
       return;
@@ -30,7 +31,7 @@ export default function MpesaPayment() {
 
     try {
       toast.loading('⏳ Sending STK push to your phone...');
-      const token = localStorage.getItem('token'); // Retrieve token
+      const token = localStorage.getItem('token');
       if (!token) {
         toast.error('Please log in first.');
         navigate('/login');
@@ -39,15 +40,42 @@ export default function MpesaPayment() {
 
       const res = await axios.post(
         `${Apidomain}/mpesa/initiate`,
-        { phoneNumber},
+        { phoneNumber },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
       toast.dismiss();
 
       if (res.data.success) {
-        toast.success('✅ STK Push sent! Check your phone and enter M-Pesa PIN');
-        setTimeout(() => navigate('/dashboard'), 4000);
+        toast.success('📲 STK Push sent! Please enter M-Pesa PIN on your phone');
+
+        let attempts = 0;
+        const maxAttempts = 12; // poll for 1 minute (12 * 5s)
+        const interval = setInterval(async () => {
+          attempts++;
+          try {
+            const statusRes = await axios.get(`${Apidomain}/mpesa/status`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+
+            const status = statusRes.data.status;
+
+            if (status === 'success') {
+              clearInterval(interval);
+              toast.success('✅ Payment successful!');
+              navigate('/dashboard');
+            } else if (status === 'failed') {
+              clearInterval(interval);
+              toast.error('❌ Payment failed or cancelled.');
+            } else if (attempts >= maxAttempts) {
+              clearInterval(interval);
+              toast.error('⏰ Payment timeout. Please try again.');
+            }
+          } catch (err) {
+            clearInterval(interval);
+            toast.error(`⚠️ Error checking payment status: ${err.message}`);
+          }
+        }, 5000); // poll every 5 seconds
       } else {
         toast.error('❌ STK push failed. Try again.');
       }

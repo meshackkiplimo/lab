@@ -6,23 +6,20 @@ const paymentSchema = new mongoose.Schema({
     ref: 'User',
     required: true,
   },
-  amount: {
-    type: Number,
-    required: true,
-  },
+  amount: Number,
   method: {
     type: String,
-    required: true,
+    enum: ['Mpesa'],
+    default: 'Mpesa',
   },
   status: {
     type: String,
-    enum: ['pending', 'completed', 'failed'],
+    enum: ['pending', 'success', 'failed'],
     default: 'pending',
   },
-  createdAt: {
-    type: Date,
-    default: Date.now,
-  },
-});
+  checkoutRequestID: String,
+  mpesaReceiptNumber: String,
+  transactionDate: String,
+}, { timestamps: true });
 
 module.exports = mongoose.model('Payment', paymentSchema);
