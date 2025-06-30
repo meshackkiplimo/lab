@@ -94,7 +94,7 @@ const ManageInventory = () => {
                         style={{
                           padding: '6px 10px',
                           borderRadius: '6px',
-                          backgroundColor: '#f1f5f9',
+                          backgroundColor: 'green',
                           border: '1px solid #cbd5e1',
                           cursor: 'pointer',
                         }}
