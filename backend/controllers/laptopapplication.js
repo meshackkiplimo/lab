@@ -78,7 +78,7 @@ exports.getApplications = async (req, res) => {
     const query = req.query.status ? { status: req.query.status } : {};
 
     const applications = await LaptopApplication.find(query)
-      .populate('student', 'name email year')
+      .populate('student', 'firstName lastName email year')
       .populate('laptop', 'model spec available');
 
     return res.status(200).json({
