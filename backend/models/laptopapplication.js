@@ -5,9 +5,10 @@ const applicationSchema = new mongoose.Schema({
   laptop: { type: mongoose.Schema.Types.ObjectId, ref: 'Laptop', required: true },
   status: {
     type: String,
-    enum: ['Pending', 'Approved', 'Rejected'],
+    enum: ['Approved', 'Rejected'],
     default: 'Pending'
   },
+    amountPaid: { type: Number, default: 0 }, 
   appliedAt: { type: Date, default: Date.now },
   updatedAt: { type: Date }
 });

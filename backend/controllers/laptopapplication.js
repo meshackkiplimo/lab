@@ -93,37 +93,75 @@ exports.getApplications = async (req, res) => {
 };
 
 // Admin: Update application status
+// Admin: Update application status (Approve or Reject only)
 exports.updateApplicationStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
 
-    // Validate status
-    const validStatuses = ['Pending', 'Approved', 'Rejected'];
+    // Allow only valid transitions
+    const validStatuses = ['Approved', 'Rejected'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ success: false, error: 'Invalid status value' });
     }
 
+    // Find and update the application
     const updated = await LaptopApplication.findByIdAndUpdate(
       id,
       { status },
       { new: true }
-    ).populate('student', 'name email year')
-     .populate('laptop', 'model spec');
+    )
+      .populate('student', 'firstName lastName email year')
+      .populate('laptop', 'model brand spec');
 
     if (!updated) {
       return res.status(404).json({ success: false, error: 'Application not found' });
     }
 
-    console.log(`📤 Application status updated to "${status}"`);
+    console.log(`✅ Application ID: ${id} updated to status: ${status}`);
+
     return res.status(200).json({
       success: true,
-      message: 'Application status updated successfully',
-      updated
+      message: `Application has been ${status.toLowerCase()}`,
+      application: updated
     });
 
   } catch (err) {
-    console.error('❌ Error in updateApplicationStatus:', err);
-    res.status(500).json({ success: false, error: err.message });
+    console.error('❌ Error in updateApplicationStatus:', err.message);
+    return res.status(500).json({
+      success: false,
+      error: 'An error occurred while updating the application status'
+    });
   }
 };
+
+// Admin: Delete application
+exports.deleteApplication = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Validate ID format
+    if (!id || !id.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({ success: false, error: 'Invalid application ID format' });
+    }
+
+    const deleted = await LaptopApplication.findByIdAndDelete(id);
+    if (!deleted) {
+      return res.status(404).json({ success: false, error: 'Application not found' });
+    }
+
+    console.log(`✅ Application ID: ${id} deleted successfully`);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Application deleted successfully'
+    });
+
+  } catch (err) {
+    console.error('❌ Error in deleteApplication:', err.message);
+    return res.status(500).json({
+      success: false,
+      error: 'An error occurred while deleting the application'
+    });
+  }
+}
