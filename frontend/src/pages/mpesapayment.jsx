@@ -50,7 +50,7 @@ export default function MpesaPayment() {
   };
 
   const checkPaymentStatus = async (token, attempts = 0) => {
-    const maxAttempts = 24; // 2 minutes (24 * 5s)
+    const maxAttempts = 20; // 1 minute (20 * 3s)
 
     if (attempts >= maxAttempts) {
       setTimeoutId(null);
@@ -86,7 +86,8 @@ export default function MpesaPayment() {
         toast.error(description || (status === 'cancelled' ? '❌ Payment cancelled or timed out.' : '❌ Payment failed.'));
       } else {
         // Schedule next check
-        const newTimeoutId = setTimeout(() => checkPaymentStatus(token, attempts + 1), 5000);
+        // Poll more frequently (every 3 seconds)
+        const newTimeoutId = setTimeout(() => checkPaymentStatus(token, attempts + 1), 3000);
         setTimeoutId(newTimeoutId);
       }
     } catch (err) {
@@ -98,7 +99,7 @@ export default function MpesaPayment() {
         toast.error('Payment record not found');
       } else {
         // On error, continue polling unless max attempts reached
-        const newTimeoutId = setTimeout(() => checkPaymentStatus(token, attempts + 1), 5000);
+        const newTimeoutId = setTimeout(() => checkPaymentStatus(token, attempts + 1), 3000);
         setTimeoutId(newTimeoutId);
       }
     }
@@ -160,7 +161,8 @@ export default function MpesaPayment() {
         setPaymentDetails({ checkoutId: res.data.data.CheckoutRequestID });
 
         // Start status checking after a brief delay
-        const initialTimeoutId = setTimeout(() => checkPaymentStatus(token), 5000);
+        // Start checking sooner (after 2 seconds)
+        const initialTimeoutId = setTimeout(() => checkPaymentStatus(token), 2000);
         setTimeoutId(initialTimeoutId);
       } else {
         setPaymentStatus('failed');

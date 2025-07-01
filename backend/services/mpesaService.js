@@ -32,16 +32,19 @@ class MpesaService {
       PartyA: phoneNumber,
       PartyB: MPESA_SHORTCODE,
       PhoneNumber: phoneNumber,
-      CallBackURL: process.env.MPESA_CALLBACK_URL || 'https://lab-c85c.onrender.com/api/mpesa/callback',
+      CallBackURL: process.env.MPESA_CALLBACK_URL,
       AccountReference: 'Laptop Payment',
       TransactionDesc: transactionDesc || 'Payment for laptop',
       ResponseType: 'Completed'
     };
 
+    // Log full payload details for debugging
     console.log('🚀 Initiating STK Push with payload:', {
       ...payload,
       Password: '***HIDDEN***',
-      CallBackURL: MPESA_CALLBACK_URL
+      CallBackURL: MPESA_CALLBACK_URL,
+      Amount: amount,
+      PhoneNumber: phoneNumber
     });
 
     try {
@@ -61,6 +64,36 @@ class MpesaService {
     } catch (error) {
       console.error('❌ STK Push Error:', error.response?.data || error.message);
       throw new Error(`STK Push failed: ${error.response?.data?.errorMessage || error.message}`);
+    }
+  }
+
+  static async queryTransactionStatus(checkoutRequestId) {
+    const accessToken = await this.getAccessToken();
+    const timestamp = new Date().toISOString().replace(/[^0-9]/g, '').slice(0, 14);
+    const { MPESA_SHORTCODE, MPESA_PASSKEY } = process.env;
+    const password = Buffer.from(`${MPESA_SHORTCODE}${MPESA_PASSKEY}${timestamp}`).toString('base64');
+
+    const payload = {
+      BusinessShortCode: MPESA_SHORTCODE,
+      Password: password,
+      Timestamp: timestamp,
+      CheckoutRequestID: checkoutRequestId
+    };
+
+    try {
+      const response = await axios.post(
+        'https://sandbox.safaricom.co.ke/mpesa/stkpushquery/v1/query',
+        payload,
+        {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        }
+      );
+
+      console.log('✅ STK Query Response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ STK Query Error:', error.response?.data || error.message);
+      throw new Error(`STK Query failed: ${error.response?.data?.errorMessage || error.message}`);
     }
   }
 }

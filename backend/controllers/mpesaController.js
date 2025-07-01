@@ -158,7 +158,7 @@ class MpesaController {
   // 3. Check Payment Status (Frontend polling hits this)
   static async checkPaymentStatus(req, res) {
     try {
-      const payment = await Payment.findOne({ 
+      const payment = await Payment.findOne({
         userId: req.user.id,
         status: { $in: ['pending', 'success', 'failed', 'cancelled'] }
       })
@@ -168,17 +168,44 @@ class MpesaController {
         return res.status(404).json({ status: 'not_found' });
       }
 
-      // If payment is still pending after 2 minutes, mark as cancelled
+      // If still pending, query Safaricom for status
       if (payment.status === 'pending') {
-        const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
-        if (payment.createdAt < twoMinutesAgo) {
-          payment.status = 'cancelled';
-          payment.mpesaResultDesc = 'Transaction timed out';
+        try {
+          const result = await MpesaService.queryTransactionStatus(payment.checkoutId);
+          
+          // Update payment status based on M-Pesa response
+          if (result.ResultCode === 0) {
+            payment.status = 'success';
+            payment.mpesaResultDesc = 'Payment completed successfully';
+            // Update remaining balance
+            const newBalance = payment.remainingBalance - payment.amount;
+            payment.remainingBalance = Math.max(0, newBalance);
+          } else if (result.ResultCode === 1032) {
+            payment.status = 'cancelled';
+            payment.mpesaResultDesc = 'Transaction cancelled by user';
+          } else {
+            // Check for timeout
+            const oneMinuteAgo = new Date(Date.now() - 1 * 60 * 1000); // Reduced to 1 minute
+            if (payment.createdAt < oneMinuteAgo) {
+              payment.status = 'cancelled';
+              payment.mpesaResultDesc = 'Transaction timed out';
+            }
+          }
+          
           await payment.save();
+        } catch (error) {
+          console.error('Error querying M-Pesa status:', error);
+          // Check for timeout even if query fails
+          const oneMinuteAgo = new Date(Date.now() - 1 * 60 * 1000);
+          if (payment.createdAt < oneMinuteAgo) {
+            payment.status = 'cancelled';
+            payment.mpesaResultDesc = 'Transaction timed out';
+            await payment.save();
+          }
         }
       }
 
-      // Return more details for better frontend handling
+      // Return updated status
       return res.status(200).json({
         status: payment.status,
         checkoutId: payment.checkoutId,
