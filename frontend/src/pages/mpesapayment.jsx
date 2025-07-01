@@ -13,6 +13,21 @@ export default function MpesaPayment() {
   const [paymentDetails, setPaymentDetails] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [timeoutId, setTimeoutId] = useState(null);
+  const [price, setPrice] = useState(0);
+  const [monthlyPayment, setMonthlyPayment] = useState(0);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const priceParam = Number(params.get('price'));
+    if (!priceParam) {
+      navigate('/available-laptops');
+      return;
+    }
+
+    setPrice(priceParam);
+    // Calculate monthly payment (10% of price)
+    setMonthlyPayment((priceParam * 10) / 100);
+  }, [navigate]);
 
   // Cleanup on component unmount
   useEffect(() => {
@@ -120,9 +135,21 @@ export default function MpesaPayment() {
         return;
       }
 
+      const params = new URLSearchParams(window.location.search);
+      const laptopId = params.get('laptopId');
+      if (!laptopId) {
+        toast.error('Laptop ID is required');
+        navigate('/available-laptops');
+        return;
+      }
+
       const res = await axios.post(
         `${Apidomain}/mpesa/initiate`,
-        { phoneNumber },
+        {
+          phoneNumber,
+          laptopId,
+          amount: monthlyPayment
+        },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -176,7 +203,7 @@ export default function MpesaPayment() {
       case 'waiting':
         return '⏳ Waiting for M-Pesa confirmation...';
       default:
-        return 'Pay KES 1 for Laptop';
+        return `Pay KES ${monthlyPayment.toFixed(2)} (10% of ${price})`;
     }
   };
 
@@ -187,7 +214,7 @@ export default function MpesaPayment() {
         className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full"
       >
         <h2 className="text-2xl font-bold mb-6 text-blue-600 text-center">
-          M-Pesa Payment
+          Laptop Payment Plan
         </h2>
 
         <div
@@ -199,6 +226,17 @@ export default function MpesaPayment() {
           }}
         >
           {getStatusMessage()}
+        </div>
+
+        <div className="mb-6 space-y-2 text-sm">
+          <div className="flex justify-between px-4 py-2 bg-gray-50 rounded">
+            <span>Total Price:</span>
+            <span className="font-medium">KES {price.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between px-4 py-2 bg-gray-50 rounded">
+            <span>Monthly Payment (10%):</span>
+            <span className="font-medium">KES {monthlyPayment.toFixed(2)}</span>
+          </div>
         </div>
 
         {paymentDetails?.checkoutId && (

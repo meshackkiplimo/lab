@@ -16,21 +16,50 @@ export default function AvailableLaptops() {
     }
 
     setAuthorized(true);
-    fetch('http://localhost:5000/api/laptops')
-      .then(res => res.json())
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setAuthorized(false);
+      navigate('/login');
+      return;
+    }
+
+    fetch('http://localhost:5000/api/laptops', {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+      .then(res => {
+        if (!res.ok) {
+          throw new Error('Failed to fetch laptops');
+        }
+        return res.json();
+      })
       .then(data => {
+        if (!Array.isArray(data)) {
+          throw new Error('Invalid response format');
+        }
         setLaptops(data);
         setLoading(false);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error('Error fetching laptops:', err);
         setLaptops([]);
         setLoading(false);
+        // Show error message in the UI
+        const errorDiv = document.createElement('div');
+        errorDiv.style.backgroundColor = '#fee2e2';
+        errorDiv.style.color = '#dc2626';
+        errorDiv.style.padding = '1rem';
+        errorDiv.style.borderRadius = '0.5rem';
+        errorDiv.style.marginBottom = '1rem';
+        errorDiv.textContent = 'Failed to load laptops. Please try again later.';
+        document.querySelector('div[style*="maxWidth: 1400"]')?.prepend(errorDiv);
       });
   }, [navigate]);
 
   const handleApply = (laptopId) => {
     navigate(`/applications/${laptopId}`);
-    
   };
 
   if (authorized === false) return null;

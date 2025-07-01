@@ -13,4 +13,7 @@ router.get('/status', authMiddleware(), MpesaController.checkPaymentStatus);
 // New route for user payments
 router.get('/user-payments', authMiddleware(), MpesaController.getUserPayments);
 
+// Get laptop payment details
+router.get('/laptop-payment-details/:laptopId', authMiddleware(), MpesaController.getLaptopPaymentDetails);
+
 module.exports = router;

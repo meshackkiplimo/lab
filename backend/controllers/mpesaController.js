@@ -4,27 +4,51 @@ const MpesaService = require('../services/mpesaService');
 class MpesaController {
   // 1. Initiate STK Push
   static async initiatePayment(req, res) {
-    const { phoneNumber } = req.body;
-    const fixedAmount = 1; // KES
-    const transactionDesc = 'Payment for laptop';
+    const { phoneNumber, laptopId } = req.body;
 
-    if (!phoneNumber) {
-      return res.status(400).json({ success: false, error: 'Phone number is required' });
+    if (!phoneNumber || !laptopId) {
+      return res.status(400).json({ success: false, error: 'Phone number and laptop ID are required' });
     }
 
     try {
+      // Get laptop price and check existing payments
+      const laptop = await require('../models/laptop').findById(laptopId);
+      if (!laptop) {
+        return res.status(404).json({ success: false, error: 'Laptop not found' });
+      }
+
+      // Get latest payment to check remaining balance
+      const lastPayment = await Payment.findOne({
+        userId: req.user.id,
+        laptopId: laptopId,
+        status: 'success'
+      }).sort({ createdAt: -1 });
+
+      const totalPrice = laptop.price;
+      const remainingBalance = lastPayment ? lastPayment.remainingBalance : totalPrice;
+      const monthlyPayment = (remainingBalance * 10) / 100; // 10% of remaining balance
+
       console.log('Initiating payment with:', {
         phoneNumber,
-        fixedAmount,
-        transactionDesc,
+        amount: monthlyPayment,
+        remainingBalance,
+        totalPrice,
         callbackUrl: process.env.MPESA_CALLBACK_URL
       });
-      const response = await MpesaService.initiateStkPush(phoneNumber, fixedAmount, transactionDesc);
 
-      // Store the payment record immediately
+      const response = await MpesaService.initiateStkPush(
+        phoneNumber,
+        monthlyPayment,
+        'Monthly laptop payment'
+      );
+
+      // Store the payment record
       const payment = new Payment({
         userId: req.user.id,
-        amount: fixedAmount,
+        laptopId: laptopId,
+        totalPrice: totalPrice,
+        remainingBalance: remainingBalance,
+        amount: monthlyPayment,
         method: 'Mpesa',
         status: 'pending',
         checkoutId: response.CheckoutRequestID,
@@ -86,10 +110,16 @@ class MpesaController {
         return res.status(200).json({ message: 'Callback received but no matching payment found' });
       }
 
-      // Update payment status
+      // Update payment status and remaining balance
       payment.status = status;
       payment.mpesaResultCode = ResultCode;
       payment.mpesaResultDesc = ResultDesc;
+
+      if (status === 'success') {
+        // Update remaining balance after successful payment
+        const newBalance = payment.remainingBalance - payment.amount;
+        payment.remainingBalance = Math.max(0, newBalance); // Ensure it doesn't go below 0
+      }
 
       // Extract transaction details if successful
       if (status === 'success' && CallbackMetadata?.Item) {
@@ -171,6 +201,44 @@ class MpesaController {
     } catch (error) {
       console.error('❌ Error fetching user payments:', error.message);
       return res.status(500).json({ error: 'Error fetching payment history' });
+    }
+  }
+
+  // Get laptop payment details
+  static async getLaptopPaymentDetails(req, res) {
+    try {
+      const { laptopId } = req.params;
+
+      // Get laptop details
+      const laptop = await require('../models/laptop').findById(laptopId);
+      if (!laptop) {
+        return res.status(404).json({ error: 'Laptop not found' });
+      }
+
+      // Get latest payment to calculate remaining balance
+      const lastPayment = await Payment.findOne({
+        userId: req.user.id,
+        laptopId: laptopId,
+        status: 'success'
+      }).sort({ createdAt: -1 });
+
+      const totalPrice = laptop.price;
+      const remainingBalance = lastPayment ? lastPayment.remainingBalance : totalPrice;
+      const monthlyPercentage = 10;
+      const monthlyPayment = (remainingBalance * monthlyPercentage) / 100;
+
+      return res.status(200).json({
+        totalPrice,
+        remainingBalance,
+        monthlyPercentage,
+        monthlyPayment,
+        model: laptop.model,
+        brand: laptop.brand
+      });
+
+    } catch (error) {
+      console.error('Error getting laptop payment details:', error);
+      return res.status(500).json({ error: 'Failed to get payment details' });
     }
   }
 }

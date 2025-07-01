@@ -6,6 +6,23 @@ const paymentSchema = new mongoose.Schema({
     ref: 'User',
     required: true,
   },
+  laptopId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Laptop',
+    required: true
+  },
+  totalPrice: {
+    type: Number,
+    required: true
+  },
+  remainingBalance: {
+    type: Number,
+    required: true
+  },
+  monthlyPercentage: {
+    type: Number,
+    default: 10
+  },
   amount: Number,
   method: {
     type: String,

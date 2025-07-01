@@ -9,11 +9,11 @@ const {
 } = require('../controllers/laptopcontroller');
 const Laptop = require('../models/laptop'); // ✅ ensure this is correct
 
-// 🟢 Public route: get all laptops
-router.get('/', getLaptops);
+// 🔒 Protected route: get all laptops (requires authentication)
+router.get('/', auth(), getLaptops);
 
-// 🟢 Public route: get one laptop by ID
-router.get('/:id', async (req, res) => {
+// 🔒 Protected route: get one laptop by ID (requires authentication)
+router.get('/:id', auth(), async (req, res) => {
   try {
     const laptop = await Laptop.findById(req.params.id);
     if (!laptop) return res.status(404).json({ message: 'Laptop not found' });

@@ -68,7 +68,7 @@ export default function App() {
       />
 
       <Route
-        path="/mpesa"
+        path="/mpesa-payment"
         element={
           <ProtectedRoute allowedRoles={['student']}>
             <Layout>

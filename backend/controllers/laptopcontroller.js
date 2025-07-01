@@ -15,10 +15,16 @@ exports.addLaptop = async (req, res) => {
 // Admin/User: Get all laptops
 exports.getLaptops = async (req, res) => {
   try {
+    console.log('📱 Getting laptops for user:', req.user.id);
     const laptops = await Laptop.find();
+    console.log(`✅ Found ${laptops.length} laptops`);
     res.json(laptops);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('❌ Error getting laptops:', err);
+    res.status(500).json({
+      error: 'Failed to fetch laptops',
+      details: err.message
+    });
   }
 };
 

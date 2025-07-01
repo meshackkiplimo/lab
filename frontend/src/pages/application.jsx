@@ -86,7 +86,7 @@ export default function Application() {
       })
       .then(data => {
         alert('✅ Application submitted successfully!');
-        navigate('/mpesa');
+        navigate(`/mpesa-payment?laptopId=${laptopId}&price=${laptop.price}`);
       })
       .catch(err => {
         console.error('Application submission error:', err);
