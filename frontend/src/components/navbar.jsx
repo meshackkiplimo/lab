@@ -15,11 +15,13 @@ export default function Navbar() {
 
   return (
     <nav className="main-navbar">
-      <h1 className="navbar-brand">SLFS System</h1>
+      <div className="logo">
+        <Link to="/" className="logo-link">Laptop System</Link>
+      </div>
       <div className="nav-links">
         <Link to="/dashboard" className="nav-link">Dashboard</Link>
         <Link to="/available-laptops" className="nav-link">Laptops</Link>
-        <Link to="/mpesa-payment" className="nav-link">Mpesa</Link>
+     
         <Link to="/user-stats" className="nav-link">Stats</Link>
         <Link to="/clearance" className="nav-link">Clearance</Link>
         <button onClick={handleLogout} className="logout-btn">Logout</button>

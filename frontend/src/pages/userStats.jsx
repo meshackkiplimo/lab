@@ -10,6 +10,8 @@ export default function UserStats() {
   const [applications, setApplications] = useState([]);
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedMonth, setSelectedMonth] = useState('');
+  const [availableMonths, setAvailableMonths] = useState([]);
 useEffect(() => {
   const fetchUserData = async () => {
     try {
@@ -25,6 +27,18 @@ useEffect(() => {
 
       setApplications(applicationsRes.data);
       setPayments(paymentsRes.data);
+
+      // Extract available months from payments
+      const months = Array.from(
+        new Set(
+          paymentsRes.data.map(p => {
+            const d = new Date(p.createdAt);
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+          })
+        )
+      ).sort().reverse();
+      setAvailableMonths(months);
+      setSelectedMonth(months[0] || '');
       setLoading(false);
     } catch (error) {
       console.error('Error fetching user data:', error);
@@ -40,8 +54,16 @@ useEffect(() => {
   const approvedApplications = applications.filter(app => app.status?.toLowerCase() === 'approved').length;
   const pendingApplications = applications.filter(app => app.status?.toLowerCase() === 'pending').length;
   const rejectedApplications = applications.filter(app => app.status?.toLowerCase() === 'rejected').length;
-  const totalPayments = payments.length;
-  const totalAmountPaid = payments
+  // Filter payments by selected month
+  const filteredPayments = selectedMonth
+    ? payments.filter(p => {
+        const d = new Date(p.createdAt);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` === selectedMonth;
+      })
+    : payments;
+
+  const totalPayments = filteredPayments.length;
+  const totalAmountPaid = filteredPayments
     .filter(payment => payment.status?.toLowerCase() === 'success')
     .reduce((sum, payment) => sum + (Number(payment.amount) || 0), 0);
 
@@ -226,58 +248,86 @@ const handlePrintReceipt = async (payment) => {
             <p>No payments found</p>
           </div>
         ) : (
-          <div className="table-wrapper">
-            <table className="payments-table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Amount</th>
-                  <th>Status</th>
-                  <th>Method</th>
-                  <th>Receipt</th>
-                </tr>
-              </thead>
-              <tbody>
-                {payments.map((payment) => (
-                  <tr key={payment._id}>
-                    <td>{formatDate(payment.createdAt)}</td>
-                    <td>KES {payment.amount}</td>
-                    <td>
-                      <span
-                        className="status-badge"
-                        style={{
-                          backgroundColor: `${getStatusColor(payment.status)}20`,
-                          color: getStatusColor(payment.status)
-                        }}
-                      >
-                        {payment.status}
-                      </span>
-                    </td>
-                    <td>{payment.method}</td>
-                    <td>
-                      <button
-                        className="receipt-btn"
-                        onClick={() => handlePrintReceipt(payment)}
-                        style={{
-                          background: "#10b981",
-                          color: "#fff",
-                          border: "none",
-                          borderRadius: "0.375rem",
-                          padding: "0.4rem 1rem",
-                          cursor: "pointer",
-                          fontSize: "0.9rem",
-                          fontWeight: 500,
-                          transition: "background 0.2s"
-                        }}
-                      >
-                        Download PDF Receipt
-                      </button>
-                    </td>
+          <>
+            <div style={{ marginBottom: "1rem" }}>
+              <label htmlFor="month-select" style={{ marginRight: "0.5rem", fontWeight: 500 }}>
+                Filter by Month:
+              </label>
+              <select
+                id="month-select"
+                value={selectedMonth}
+                onChange={e => setSelectedMonth(e.target.value)}
+                style={{
+                  padding: "0.4rem 1rem",
+                  borderRadius: "0.375rem",
+                  border: "1px solid #d1d5db",
+                  fontSize: "1rem"
+                }}
+              >
+                {availableMonths.map(month => {
+                  const [year, m] = month.split("-");
+                  const date = new Date(year, m - 1);
+                  return (
+                    <option key={month} value={month}>
+                      {date.toLocaleString("default", { month: "long" })} {year}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+            <div className="table-wrapper">
+              <table className="payments-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Method</th>
+                    <th>Receipt</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {filteredPayments.map((payment) => (
+                    <tr key={payment._id}>
+                      <td>{formatDate(payment.createdAt)}</td>
+                      <td>KES {payment.amount}</td>
+                      <td>
+                        <span
+                          className="status-badge"
+                          style={{
+                            backgroundColor: `${getStatusColor(payment.status)}20`,
+                            color: getStatusColor(payment.status)
+                          }}
+                        >
+                          {payment.status}
+                        </span>
+                      </td>
+                      <td>{payment.method}</td>
+                      <td>
+                        <button
+                          className="receipt-btn"
+                          onClick={() => handlePrintReceipt(payment)}
+                          style={{
+                            background: "#10b981",
+                            color: "#fff",
+                            border: "none",
+                            borderRadius: "0.375rem",
+                            padding: "0.4rem 1rem",
+                            cursor: "pointer",
+                            fontSize: "0.9rem",
+                            fontWeight: 500,
+                            transition: "background 0.2s"
+                          }}
+                        >
+                          Download PDF Receipt
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </div>
