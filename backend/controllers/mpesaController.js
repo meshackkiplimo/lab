@@ -21,12 +21,14 @@ class MpesaController {
       });
       const response = await MpesaService.initiateStkPush(phoneNumber, fixedAmount, transactionDesc);
 
+      // Store the payment record immediately
       const payment = new Payment({
         userId: req.user.id,
         amount: fixedAmount,
         method: 'Mpesa',
         status: 'pending',
-        checkoutId: response.CheckoutRequestID, // store this for matching in callback
+        checkoutId: response.CheckoutRequestID,
+        mpesaResultDesc: 'Pending STK push confirmation'
       });
 
       await payment.save();
@@ -41,52 +43,62 @@ class MpesaController {
 
   // 2. Handle M-Pesa Callback from Safaricom
   static async handleCallback(req, res) {
-    console.log('🔥 M-Pesa Callback received:', {
-      body: req.body,
-      headers: req.headers
-    });
-    
-    const result = req.body?.Body?.stkCallback;
-    console.log('🔥 M-Pesa Callback data:', JSON.stringify(result, null, 2));
-
-    if (!result) {
-      return res.status(400).json({ message: 'Invalid callback data' });
-    }
-
-    const { CheckoutRequestID, ResultCode, ResultDesc } = result;
-    let status;
-
-    // Map ResultCode to appropriate status
-    if (ResultCode === 0) {
-      status = 'success';
-    } else if (ResultCode === 1032) { // User cancelled
-      status = 'cancelled';
-    } else {
-      status = 'failed';
-    }
-
-    console.log(`📊 M-Pesa Result: Code=${ResultCode}, Desc=${ResultDesc}, Status=${status}`);
-
     try {
-      const updated = await Payment.findOneAndUpdate(
-        { checkoutId: CheckoutRequestID },
-        {
-          status,
-          mpesaResultCode: ResultCode,
-          mpesaResultDesc: ResultDesc
-        },
-        { new: true }
-      );
+      console.log('🔥 M-Pesa Callback hit:', req.body);
+      
+      const {
+        MerchantRequestID,
+        CheckoutRequestID,
+        ResultCode,
+        ResultDesc
+      } = req.body;
 
-      if (updated) {
-        console.log(`✅ Payment updated. Status: ${status}`);
-      } else {
-        console.warn(`⚠️ No matching payment found for CheckoutRequestID: ${CheckoutRequestID}`);
+      if (!CheckoutRequestID) {
+        console.error('Invalid callback data - missing CheckoutRequestID');
+        return res.status(400).json({ message: 'Invalid callback data' });
       }
 
-      return res.status(200).json({ message: 'Callback received successfully' });
+      // Map ResultCode to appropriate status
+      let status;
+      if (ResultCode === 0) {
+        status = 'success';
+      } else if (ResultCode === 1032) { // User cancelled
+        status = 'cancelled';
+      } else {
+        status = 'failed';
+      }
+
+      console.log(`📊 M-Pesa Result: Code=${ResultCode}, Desc=${ResultDesc}, Status=${status}`);
+
+      // Find and update the payment
+      const payment = await Payment.findOne({ checkoutId: CheckoutRequestID });
+      
+      if (!payment) {
+        console.warn(`⚠️ No matching payment found for CheckoutRequestID: ${CheckoutRequestID}`);
+        return res.status(200).json({ message: 'Callback received but no matching payment found' });
+      }
+
+      // Update payment status
+      payment.status = status;
+      payment.mpesaResultCode = ResultCode;
+      payment.mpesaResultDesc = ResultDesc;
+      
+      if (req.body.CallbackMetadata?.Item) {
+        const items = req.body.CallbackMetadata.Item;
+        payment.mpesaReceiptNumber = items.find(item => item.Name === 'MpesaReceiptNumber')?.Value || '';
+        payment.transactionDate = items.find(item => item.Name === 'TransactionDate')?.Value || '';
+      }
+
+      await payment.save();
+      console.log(`✅ Payment updated:`, {
+        checkoutId: CheckoutRequestID,
+        status,
+        desc: ResultDesc
+      });
+
+      return res.status(200).json({ message: 'Callback processed successfully' });
     } catch (err) {
-      console.error('❌ Error handling callback:', err.message);
+      console.error('❌ Error handling callback:', err);
       return res.status(500).json({ message: 'Error processing callback' });
     }
   }
@@ -94,22 +106,33 @@ class MpesaController {
   // 3. Check Payment Status (Frontend polling hits this)
   static async checkPaymentStatus(req, res) {
     try {
-      const payment = await Payment.findOne({ userId: req.user.id }).sort({ createdAt: -1 });
+      const payment = await Payment.findOne({ 
+        userId: req.user.id,
+        status: { $in: ['pending', 'success', 'failed', 'cancelled'] }
+      })
+      .sort({ createdAt: -1 });
 
       if (!payment) {
         return res.status(404).json({ status: 'not_found' });
       }
 
-      // If payment has been pending for more than 2 minutes, mark it as cancelled
+      // If payment is still pending after 2 minutes, mark as cancelled
       if (payment.status === 'pending') {
         const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
         if (payment.createdAt < twoMinutesAgo) {
           payment.status = 'cancelled';
+          payment.mpesaResultDesc = 'Transaction timed out';
           await payment.save();
         }
       }
 
-      return res.status(200).json({ status: payment.status }); // 'pending', 'success', 'failed', or 'cancelled'
+      // Return more details for better frontend handling
+      return res.status(200).json({
+        status: payment.status,
+        checkoutId: payment.checkoutId,
+        mpesaReceiptNumber: payment.mpesaReceiptNumber,
+        description: payment.mpesaResultDesc || ''
+      });
     } catch (error) {
       console.error('❌ Error checking payment status:', error.message);
       return res.status(500).json({ status: 'error', error: error.message });

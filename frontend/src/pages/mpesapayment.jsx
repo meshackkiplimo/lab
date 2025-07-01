@@ -9,7 +9,8 @@ export default function MpesaPayment() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [paymentStatus, setPaymentStatus] = useState('idle'); // idle, waiting, success, failed, cancelled
+  const [paymentStatus, setPaymentStatus] = useState('idle');
+  const [paymentDetails, setPaymentDetails] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [timeoutId, setTimeoutId] = useState(null);
 
@@ -28,17 +29,63 @@ export default function MpesaPayment() {
       setTimeoutId(null);
     }
     
+    setPaymentStatus('cancelled');
+    setIsLoading(false);
+    toast.success('Payment request cancelled');
+  };
+
+  const checkPaymentStatus = async (token, attempts = 0) => {
+    const maxAttempts = 24; // 2 minutes (24 * 5s)
+
+    if (attempts >= maxAttempts) {
+      setTimeoutId(null);
+      setPaymentStatus('cancelled');
+      setIsLoading(false);
+      toast.error('⏰ Payment timeout. Please try again.');
+      return;
+    }
+
     try {
-      const token = localStorage.getItem('token');
       const statusRes = await axios.get(`${Apidomain}/mpesa/status`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      setPaymentStatus('cancelled');
-      setIsLoading(false);
-      toast.success('Payment cancelled successfully');
+      const { status, checkoutId, mpesaReceiptNumber, description } = statusRes.data;
+
+      setPaymentDetails({
+        checkoutId,
+        mpesaReceiptNumber,
+        description
+      });
+
+      if (status === 'success') {
+        setTimeoutId(null);
+        setPaymentStatus('success');
+        setIsLoading(false);
+        toast.success(`✅ Payment successful! Receipt: ${mpesaReceiptNumber}`);
+        setTimeout(() => navigate('/dashboard'), 3000);
+      } else if (status === 'failed' || status === 'cancelled') {
+        setTimeoutId(null);
+        setPaymentStatus(status);
+        setIsLoading(false);
+        toast.error(description || (status === 'cancelled' ? '❌ Payment cancelled or timed out.' : '❌ Payment failed.'));
+      } else {
+        // Schedule next check
+        const newTimeoutId = setTimeout(() => checkPaymentStatus(token, attempts + 1), 5000);
+        setTimeoutId(newTimeoutId);
+      }
     } catch (err) {
-      toast.error('Error cancelling payment');
+      console.error('Status check error:', err);
+      if (err.response?.status === 404) {
+        setTimeoutId(null);
+        setPaymentStatus('failed');
+        setIsLoading(false);
+        toast.error('Payment record not found');
+      } else {
+        // On error, continue polling unless max attempts reached
+        const newTimeoutId = setTimeout(() => checkPaymentStatus(token, attempts + 1), 5000);
+        setTimeoutId(newTimeoutId);
+      }
     }
   };
 
@@ -83,59 +130,15 @@ export default function MpesaPayment() {
 
       if (res.data.success) {
         toast.success('📲 STK Push sent! Please enter M-Pesa PIN on your phone');
+        setPaymentDetails({ checkoutId: res.data.data.CheckoutRequestID });
 
-        let attempts = 0;
-        toast.loading('⏳ Checking payment status...', { duration: 120000 }); // Show for 2 minutes
-        const maxAttempts = 24; // poll for 2 minutes (24 * 5s)
-
-        const checkStatus = async () => {
-          if (attempts >= maxAttempts) {
-            setTimeoutId(null);
-            setPaymentStatus('cancelled');
-            setIsLoading(false);
-            toast.error('⏰ Payment timeout. Please try again.');
-            return;
-          }
-
-          attempts++;
-          try {
-            const statusRes = await axios.get(`${Apidomain}/mpesa/status`, {
-              headers: { Authorization: `Bearer ${token}` },
-            });
-
-            const status = statusRes.data.status;
-
-            if (status === 'success') {
-              setTimeoutId(null);
-              setPaymentStatus('success');
-              setIsLoading(false);
-              toast.success('✅ Payment successful!');
-              setTimeout(() => navigate('/dashboard'), 2000);
-            } else if (status === 'failed' || status === 'cancelled') {
-              setTimeoutId(null);
-              setPaymentStatus(status);
-              setIsLoading(false);
-              toast.error(status === 'cancelled' ? '❌ Payment cancelled or timed out.' : '❌ Payment failed.');
-            } else {
-              // Schedule next check
-              const newTimeoutId = setTimeout(checkStatus, 5000);
-              setTimeoutId(newTimeoutId);
-            }
-          } catch (err) {
-            setTimeoutId(null);
-            setPaymentStatus('failed');
-            setIsLoading(false);
-            toast.error(`⚠️ Error checking payment status: ${err.message}`);
-          }
-        };
-
-        // Start checking status
-        const initialTimeoutId = setTimeout(checkStatus, 5000);
+        // Start status checking after a brief delay
+        const initialTimeoutId = setTimeout(() => checkPaymentStatus(token), 5000);
         setTimeoutId(initialTimeoutId);
       } else {
         setPaymentStatus('failed');
         setIsLoading(false);
-        toast.error('❌ STK push failed. Try again.');
+        toast.error('❌ STK push failed. Please try again.');
       }
     } catch (err) {
       setPaymentStatus('failed');
@@ -159,68 +162,50 @@ export default function MpesaPayment() {
   };
 
   const getStatusMessage = () => {
+    if (paymentStatus === 'success' && paymentDetails?.mpesaReceiptNumber) {
+      return `✅ Payment Successful! Receipt: ${paymentDetails.mpesaReceiptNumber}`;
+    }
+
     switch (paymentStatus) {
       case 'success':
         return '✅ Payment Successful! Redirecting...';
       case 'failed':
-        return '❌ Payment Failed';
+        return paymentDetails?.description || '❌ Payment Failed';
       case 'cancelled':
-        return '❌ Payment Cancelled or Timed Out';
+        return paymentDetails?.description || '❌ Payment Cancelled or Timed Out';
       case 'waiting':
         return '⏳ Waiting for M-Pesa confirmation...';
       default:
-        return 'Pay KES 50,000 for Laptop';
+        return 'Pay KES 1 for Laptop';
     }
   };
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        background: '#f0f4f8',
-        padding: '2rem',
-      }}
-    >
-      <form
+    <div className="min-h-screen flex justify-center items-center bg-gray-50 p-4">
+      <form 
         onSubmit={handlePayment}
-        style={{
-          background: '#ffffff',
-          padding: '2rem',
-          borderRadius: '12px',
-          boxShadow: '0 8px 30px rgba(0, 0, 0, 0.1)',
-          width: '100%',
-          maxWidth: '500px',
-        }}
+        className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full"
       >
-        <h2
-          style={{
-            fontSize: '1.8rem',
-            fontWeight: 700,
-            marginBottom: '1.5rem',
-            color: '#2563eb',
-            textAlign: 'center',
-          }}
-        >
+        <h2 className="text-2xl font-bold mb-6 text-blue-600 text-center">
           M-Pesa Payment
         </h2>
 
         <div
+          className="p-4 mb-6 rounded-lg text-center font-semibold"
           style={{
-            padding: '1rem',
-            marginBottom: '1.5rem',
-            borderRadius: '8px',
             backgroundColor: '#f8fafc',
             border: `1px solid ${getStatusColor()}`,
             color: getStatusColor(),
-            textAlign: 'center',
-            fontWeight: '600',
           }}
         >
           {getStatusMessage()}
         </div>
+
+        {paymentDetails?.checkoutId && (
+          <div className="mb-4 text-sm text-gray-600 text-center">
+            Transaction ID: {paymentDetails.checkoutId}
+          </div>
+        )}
 
         <input
           type="text"
@@ -228,33 +213,17 @@ export default function MpesaPayment() {
           value={phoneNumber}
           onChange={(e) => setPhoneNumber(e.target.value)}
           disabled={isLoading || paymentStatus === 'waiting' || paymentStatus === 'success'}
+          className="w-full px-4 py-3 rounded-lg border border-gray-300 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
           style={{
-            width: '100%',
-            padding: '0.8rem',
-            border: '1px solid #cbd5e1',
-            borderRadius: '8px',
-            fontSize: '1rem',
-            marginBottom: '1.2rem',
             opacity: isLoading ? '0.7' : '1',
           }}
         />
 
-        <div style={{ display: 'flex', gap: '1rem' }}>
+        <div className="flex gap-4">
           <button
             type="submit"
             disabled={isLoading || paymentStatus === 'waiting' || paymentStatus === 'success'}
-            style={{
-              flex: '1',
-              padding: '0.9rem',
-              backgroundColor: isLoading ? '#94a3b8' : '#10b981',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              fontWeight: '600',
-              fontSize: '1rem',
-              cursor: isLoading ? 'not-allowed' : 'pointer',
-              transition: 'background 0.3s',
-            }}
+            className="flex-1 py-3 px-4 bg-green-500 text-white font-semibold rounded-lg disabled:bg-gray-400 hover:bg-green-600 transition-colors"
           >
             {isLoading ? 'Processing...' : 'Pay with M-Pesa'}
           </button>
@@ -263,18 +232,7 @@ export default function MpesaPayment() {
             <button
               type="button"
               onClick={cancelPayment}
-              style={{
-                flex: '1',
-                padding: '0.9rem',
-                backgroundColor: '#ef4444',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                fontWeight: '600',
-                fontSize: '1rem',
-                cursor: 'pointer',
-                transition: 'background 0.3s',
-              }}
+              className="flex-1 py-3 px-4 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600 transition-colors"
             >
               Cancel Payment
             </button>
