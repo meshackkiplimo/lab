@@ -9,11 +9,21 @@ const path = require('path');
 const app = express();
 
 // Middleware
+// Allow CORS for frontend and M-Pesa callback
 app.use(cors({
-  origin: [
-    'http://localhost:5173',
-    'https://6696-41-89-198-6.ngrok-free.app'
-  ],
+  origin: (origin, callback) => {
+    const allowedOrigins = [
+      'http://localhost:5173',
+      'https://6696-41-89-198-6.ngrok-free.app',
+      'https://lab-c85c.onrender.com'
+    ];
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(null, true); // Allow all origins for M-Pesa callback
+    }
+  },
   credentials: true
 }));
 

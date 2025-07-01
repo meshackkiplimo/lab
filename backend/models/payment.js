@@ -14,12 +14,14 @@ const paymentSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'success', 'failed'],
+    enum: ['pending', 'success', 'failed', 'cancelled'],
     default: 'pending',
   },
-  checkoutRequestID: String,
+  checkoutId: String,
   mpesaReceiptNumber: String,
   transactionDate: String,
+  mpesaResultCode: Number,
+  mpesaResultDesc: String,
 }, { timestamps: true });
 
 module.exports = mongoose.model('Payment', paymentSchema);

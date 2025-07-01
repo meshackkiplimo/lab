@@ -1,14 +1,46 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import axios from 'axios';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/authcontext';
 import { Apidomain } from '../utils/ApiDomain';
 
 export default function MpesaPayment() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [paymentStatus, setPaymentStatus] = useState('idle'); // idle, waiting, success, failed, cancelled
+  const [isLoading, setIsLoading] = useState(false);
+  const [timeoutId, setTimeoutId] = useState(null);
+
+  // Cleanup on component unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [timeoutId]);
+
+  const cancelPayment = async () => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      setTimeoutId(null);
+    }
+    
+    try {
+      const token = localStorage.getItem('token');
+      const statusRes = await axios.get(`${Apidomain}/mpesa/status`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      setPaymentStatus('cancelled');
+      setIsLoading(false);
+      toast.success('Payment cancelled successfully');
+    } catch (err) {
+      toast.error('Error cancelling payment');
+    }
+  };
 
   const handlePayment = async (e) => {
     e.preventDefault();
@@ -30,7 +62,10 @@ export default function MpesaPayment() {
     }
 
     try {
-      toast.loading('⏳ Sending STK push to your phone...');
+      setIsLoading(true);
+      setPaymentStatus('waiting');
+      const loadingToast = toast.loading('⏳ Sending STK push to your phone...');
+      
       const token = localStorage.getItem('token');
       if (!token) {
         toast.error('Please log in first.');
@@ -44,14 +79,24 @@ export default function MpesaPayment() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      toast.dismiss();
+      toast.dismiss(loadingToast);
 
       if (res.data.success) {
         toast.success('📲 STK Push sent! Please enter M-Pesa PIN on your phone');
 
         let attempts = 0;
-        const maxAttempts = 12; // poll for 1 minute (12 * 5s)
-        const interval = setInterval(async () => {
+        toast.loading('⏳ Checking payment status...', { duration: 120000 }); // Show for 2 minutes
+        const maxAttempts = 24; // poll for 2 minutes (24 * 5s)
+
+        const checkStatus = async () => {
+          if (attempts >= maxAttempts) {
+            setTimeoutId(null);
+            setPaymentStatus('cancelled');
+            setIsLoading(false);
+            toast.error('⏰ Payment timeout. Please try again.');
+            return;
+          }
+
           attempts++;
           try {
             const statusRes = await axios.get(`${Apidomain}/mpesa/status`, {
@@ -61,27 +106,70 @@ export default function MpesaPayment() {
             const status = statusRes.data.status;
 
             if (status === 'success') {
-              clearInterval(interval);
+              setTimeoutId(null);
+              setPaymentStatus('success');
+              setIsLoading(false);
               toast.success('✅ Payment successful!');
-              navigate('/dashboard');
-            } else if (status === 'failed') {
-              clearInterval(interval);
-              toast.error('❌ Payment failed or cancelled.');
-            } else if (attempts >= maxAttempts) {
-              clearInterval(interval);
-              toast.error('⏰ Payment timeout. Please try again.');
+              setTimeout(() => navigate('/dashboard'), 2000);
+            } else if (status === 'failed' || status === 'cancelled') {
+              setTimeoutId(null);
+              setPaymentStatus(status);
+              setIsLoading(false);
+              toast.error(status === 'cancelled' ? '❌ Payment cancelled or timed out.' : '❌ Payment failed.');
+            } else {
+              // Schedule next check
+              const newTimeoutId = setTimeout(checkStatus, 5000);
+              setTimeoutId(newTimeoutId);
             }
           } catch (err) {
-            clearInterval(interval);
+            setTimeoutId(null);
+            setPaymentStatus('failed');
+            setIsLoading(false);
             toast.error(`⚠️ Error checking payment status: ${err.message}`);
           }
-        }, 5000); // poll every 5 seconds
+        };
+
+        // Start checking status
+        const initialTimeoutId = setTimeout(checkStatus, 5000);
+        setTimeoutId(initialTimeoutId);
       } else {
+        setPaymentStatus('failed');
+        setIsLoading(false);
         toast.error('❌ STK push failed. Try again.');
       }
     } catch (err) {
-      toast.dismiss();
+      setPaymentStatus('failed');
+      setIsLoading(false);
       toast.error(`🚫 Error: ${err.response?.data?.error || err.message}`);
+    }
+  };
+
+  const getStatusColor = () => {
+    switch (paymentStatus) {
+      case 'success':
+        return '#10b981';
+      case 'failed':
+      case 'cancelled':
+        return '#ef4444';
+      case 'waiting':
+        return '#f59e0b';
+      default:
+        return '#1e293b';
+    }
+  };
+
+  const getStatusMessage = () => {
+    switch (paymentStatus) {
+      case 'success':
+        return '✅ Payment Successful! Redirecting...';
+      case 'failed':
+        return '❌ Payment Failed';
+      case 'cancelled':
+        return '❌ Payment Cancelled or Timed Out';
+      case 'waiting':
+        return '⏳ Waiting for M-Pesa confirmation...';
+      default:
+        return 'Pay KES 50,000 for Laptop';
     }
   };
 
@@ -119,21 +207,27 @@ export default function MpesaPayment() {
           M-Pesa Payment
         </h2>
 
-        <label
+        <div
           style={{
+            padding: '1rem',
+            marginBottom: '1.5rem',
+            borderRadius: '8px',
+            backgroundColor: '#f8fafc',
+            border: `1px solid ${getStatusColor()}`,
+            color: getStatusColor(),
+            textAlign: 'center',
             fontWeight: '600',
-            marginBottom: '0.5rem',
-            display: 'block',
-            color: '#1e293b',
           }}
         >
-          Pay KES 50,000 for Laptop
-        </label>
+          {getStatusMessage()}
+        </div>
+
         <input
           type="text"
           placeholder="2547XXXXXXXX"
           value={phoneNumber}
           onChange={(e) => setPhoneNumber(e.target.value)}
+          disabled={isLoading || paymentStatus === 'waiting' || paymentStatus === 'success'}
           style={{
             width: '100%',
             padding: '0.8rem',
@@ -141,26 +235,51 @@ export default function MpesaPayment() {
             borderRadius: '8px',
             fontSize: '1rem',
             marginBottom: '1.2rem',
+            opacity: isLoading ? '0.7' : '1',
           }}
         />
 
-        <button
-          type="submit"
-          style={{
-            width: '100%',
-            padding: '0.9rem',
-            backgroundColor: '#10b981',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            fontWeight: '600',
-            fontSize: '1rem',
-            cursor: 'pointer',
-            transition: 'background 0.3s',
-          }}
-        >
-          Pay with M-Pesa
-        </button>
+        <div style={{ display: 'flex', gap: '1rem' }}>
+          <button
+            type="submit"
+            disabled={isLoading || paymentStatus === 'waiting' || paymentStatus === 'success'}
+            style={{
+              flex: '1',
+              padding: '0.9rem',
+              backgroundColor: isLoading ? '#94a3b8' : '#10b981',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontWeight: '600',
+              fontSize: '1rem',
+              cursor: isLoading ? 'not-allowed' : 'pointer',
+              transition: 'background 0.3s',
+            }}
+          >
+            {isLoading ? 'Processing...' : 'Pay with M-Pesa'}
+          </button>
+          
+          {(paymentStatus === 'waiting') && (
+            <button
+              type="button"
+              onClick={cancelPayment}
+              style={{
+                flex: '1',
+                padding: '0.9rem',
+                backgroundColor: '#ef4444',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontWeight: '600',
+                fontSize: '1rem',
+                cursor: 'pointer',
+                transition: 'background 0.3s',
+              }}
+            >
+              Cancel Payment
+            </button>
+          )}
+        </div>
       </form>
     </div>
   );

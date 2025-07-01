@@ -32,10 +32,17 @@ class MpesaService {
       PartyA: phoneNumber,
       PartyB: MPESA_SHORTCODE,
       PhoneNumber: phoneNumber,
-      CallBackURL: MPESA_CALLBACK_URL,
-      AccountReference: 'Test123',
-      TransactionDesc: transactionDesc || 'Payment for goods',
+      CallBackURL: process.env.MPESA_CALLBACK_URL || 'https://lab-c85c.onrender.com/api/mpesa/callback',
+      AccountReference: 'Laptop Payment',
+      TransactionDesc: transactionDesc || 'Payment for laptop',
+      ResponseType: 'Completed'
     };
+
+    console.log('🚀 Initiating STK Push with payload:', {
+      ...payload,
+      Password: '***HIDDEN***',
+      CallBackURL: MPESA_CALLBACK_URL
+    });
 
     try {
       const response = await axios.post(
@@ -45,8 +52,14 @@ class MpesaService {
           headers: { Authorization: `Bearer ${accessToken}` },
         }
       );
-      return response.data;
+
+      console.log('✅ STK Push Response:', response.data);
+      return {
+        ...response.data,
+        CheckoutRequestID: response.data.CheckoutRequestID
+      };
     } catch (error) {
+      console.error('❌ STK Push Error:', error.response?.data || error.message);
       throw new Error(`STK Push failed: ${error.response?.data?.errorMessage || error.message}`);
     }
   }

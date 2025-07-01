@@ -5,6 +5,7 @@ const router = express.Router();
 
 const authMiddleware = require('../middleware/auth');
 router.post('/initiate', authMiddleware(), MpesaController.initiatePayment);
+// M-Pesa callback should be public (no auth) since Safaricom needs to access it
 router.post('/callback', MpesaController.handleCallback);
 router.get('/status', authMiddleware(), MpesaController.checkPaymentStatus);
 
