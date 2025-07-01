@@ -48,11 +48,18 @@ class MpesaService {
     });
 
     try {
+      const timestamp = new Date().toISOString();
+      console.log(`🚀 [${timestamp}] Sending STK push request...`);
+      
       const response = await axios.post(
         'https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest',
         payload,
         {
-          headers: { Authorization: `Bearer ${accessToken}` },
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 10000 // 10 second timeout
         }
       );
 
@@ -60,7 +67,7 @@ class MpesaService {
       return {
         ...response.data,
         CheckoutRequestID: response.data.CheckoutRequestID
-      };
+      }
     } catch (error) {
       console.error('❌ STK Push Error:', error.response?.data || error.message);
       throw new Error(`STK Push failed: ${error.response?.data?.errorMessage || error.message}`);
@@ -68,32 +75,39 @@ class MpesaService {
   }
 
   static async queryTransactionStatus(checkoutRequestId) {
-    const accessToken = await this.getAccessToken();
-    const timestamp = new Date().toISOString().replace(/[^0-9]/g, '').slice(0, 14);
-    const { MPESA_SHORTCODE, MPESA_PASSKEY } = process.env;
-    const password = Buffer.from(`${MPESA_SHORTCODE}${MPESA_PASSKEY}${timestamp}`).toString('base64');
-
-    const payload = {
-      BusinessShortCode: MPESA_SHORTCODE,
-      Password: password,
-      Timestamp: timestamp,
-      CheckoutRequestID: checkoutRequestId
-    };
-
     try {
+      const timestamp = new Date().toISOString();
+      console.log(`🔍 [${timestamp}] Querying status for ${checkoutRequestId}`);
+
+      const accessToken = await this.getAccessToken();
+      const { MPESA_SHORTCODE, MPESA_PASSKEY } = process.env;
+      const currentTimestamp = new Date().toISOString().replace(/[^0-9]/g, '').slice(0, 14);
+      const password = Buffer.from(`${MPESA_SHORTCODE}${MPESA_PASSKEY}${currentTimestamp}`).toString('base64');
+
+      const payload = {
+        BusinessShortCode: MPESA_SHORTCODE,
+        Password: password,
+        Timestamp: currentTimestamp,
+        CheckoutRequestID: checkoutRequestId
+      };
+
       const response = await axios.post(
         'https://sandbox.safaricom.co.ke/mpesa/stkpushquery/v1/query',
         payload,
         {
-          headers: { Authorization: `Bearer ${accessToken}` },
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 5000 // 5 second timeout
         }
       );
 
-      console.log('✅ STK Query Response:', response.data);
+      console.log(`✅ [${timestamp}] Status query response:`, response.data);
       return response.data;
     } catch (error) {
-      console.error('❌ STK Query Error:', error.response?.data || error.message);
-      throw new Error(`STK Query failed: ${error.response?.data?.errorMessage || error.message}`);
+      console.error(`❌ [${new Date().toISOString()}] Status query error:`, error.response?.data || error.message);
+      throw error;
     }
   }
 }

@@ -28,12 +28,13 @@ class MpesaController {
       const remainingBalance = lastPayment ? lastPayment.remainingBalance : totalPrice;
       const monthlyPayment = (remainingBalance * 10) / 100; // 10% of remaining balance
 
-      console.log('Initiating payment with:', {
+      console.log('💰 Initiating payment with:', {
         phoneNumber,
         amount: monthlyPayment,
         remainingBalance,
         totalPrice,
-        callbackUrl: process.env.MPESA_CALLBACK_URL
+        callbackUrl: process.env.MPESA_CALLBACK_URL,
+        timestamp: new Date().toISOString()
       });
 
       const response = await MpesaService.initiateStkPush(
@@ -68,7 +69,8 @@ class MpesaController {
   // 2. Handle M-Pesa Callback from Safaricom
   static async handleCallback(req, res) {
     try {
-      console.log('🔥 M-Pesa Callback received:', JSON.stringify(req.body, null, 2));
+      const timestamp = new Date().toISOString();
+      console.log('🔥 M-Pesa Callback received at ' + timestamp + ':', JSON.stringify(req.body, null, 2));
       
       // Handle the nested structure
       const stkCallback = req.body?.Body?.stkCallback;
@@ -168,36 +170,60 @@ class MpesaController {
         return res.status(404).json({ status: 'not_found' });
       }
 
-      // If still pending, query Safaricom for status
+      // For pending payments, always check with Safaricom
       if (payment.status === 'pending') {
         try {
+          console.log('🔄 Checking status with Safaricom for:', payment.checkoutId);
           const result = await MpesaService.queryTransactionStatus(payment.checkoutId);
+          console.log('📊 Status check result:', result);
           
-          // Update payment status based on M-Pesa response
-          if (result.ResultCode === 0) {
-            payment.status = 'success';
-            payment.mpesaResultDesc = 'Payment completed successfully';
-            // Update remaining balance
-            const newBalance = payment.remainingBalance - payment.amount;
-            payment.remainingBalance = Math.max(0, newBalance);
-          } else if (result.ResultCode === 1032) {
-            payment.status = 'cancelled';
-            payment.mpesaResultDesc = 'Transaction cancelled by user';
-          } else {
-            // Check for timeout
-            const oneMinuteAgo = new Date(Date.now() - 1 * 60 * 1000); // Reduced to 1 minute
-            if (payment.createdAt < oneMinuteAgo) {
+          // Handle different M-Pesa result codes
+          switch (result.ResultCode) {
+            case 0: // Success
+              payment.status = 'success';
+              payment.mpesaResultDesc = 'Payment completed successfully';
+              const newBalance = payment.remainingBalance - payment.amount;
+              payment.remainingBalance = Math.max(0, newBalance);
+              console.log('✅ Payment successful');
+              break;
+
+            case 1032: // User cancelled on phone
               payment.status = 'cancelled';
-              payment.mpesaResultDesc = 'Transaction timed out';
-            }
+              payment.mpesaResultDesc = 'Transaction cancelled by user';
+              console.log('❌ User cancelled payment');
+              break;
+
+            case 1037: // User cannot be reached/timeout
+              payment.status = 'cancelled';
+              payment.mpesaResultDesc = 'Payment cancelled - user not reachable';
+              console.log('❌ User not reachable/timeout');
+              break;
+
+            default:
+              // For other codes, check if transaction is too old
+              const twentySecondsAgo = new Date(Date.now() - 20 * 1000);
+              if (payment.createdAt < twentySecondsAgo) {
+                payment.status = 'cancelled';
+                payment.mpesaResultDesc = 'Transaction timed out';
+                console.log('⌛ Transaction timed out');
+              } else {
+                console.log('⏳ Transaction still processing');
+              }
           }
           
-          await payment.save();
+          if (payment.isModified()) {
+            await payment.save();
+            console.log('💾 Payment updated:', {
+              status: payment.status,
+              desc: payment.mpesaResultDesc,
+              code: result.ResultCode
+            });
+          }
         } catch (error) {
           console.error('Error querying M-Pesa status:', error);
           // Check for timeout even if query fails
-          const oneMinuteAgo = new Date(Date.now() - 1 * 60 * 1000);
-          if (payment.createdAt < oneMinuteAgo) {
+          const twentySecondsAgo = new Date(Date.now() - 20 * 1000);
+          if (payment.createdAt < twentySecondsAgo) {
             payment.status = 'cancelled';
             payment.mpesaResultDesc = 'Transaction timed out';
             await payment.save();

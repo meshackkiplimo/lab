@@ -50,7 +50,7 @@ export default function MpesaPayment() {
   };
 
   const checkPaymentStatus = async (token, attempts = 0) => {
-    const maxAttempts = 20; // 1 minute (20 * 3s)
+    const maxAttempts = 30; // 30 seconds (30 * 1s)
 
     if (attempts >= maxAttempts) {
       setTimeoutId(null);
@@ -86,12 +86,15 @@ export default function MpesaPayment() {
         toast.error(description || (status === 'cancelled' ? '❌ Payment cancelled or timed out.' : '❌ Payment failed.'));
       } else {
         // Schedule next check
-        // Poll more frequently (every 3 seconds)
-        const newTimeoutId = setTimeout(() => checkPaymentStatus(token, attempts + 1), 3000);
+        // Poll very frequently (every 1 second) to catch success quickly
+        // Check very frequently in the beginning
+        const delay = attempts < 10 ? 1000 : 3000; // Every 1s for first 10 attempts, then every 3s
+        const newTimeoutId = setTimeout(() => checkPaymentStatus(token, attempts + 1), delay);
         setTimeoutId(newTimeoutId);
       }
     } catch (err) {
-      console.error('Status check error:', err);
+      const timestamp = new Date().toISOString();
+      console.error(`❌ Status check error at ${timestamp}:`, err);
       if (err.response?.status === 404) {
         setTimeoutId(null);
         setPaymentStatus('failed');
@@ -157,12 +160,16 @@ export default function MpesaPayment() {
       toast.dismiss(loadingToast);
 
       if (res.data.success) {
-        toast.success('📲 STK Push sent! Please enter M-Pesa PIN on your phone');
+        console.log('📲 STK Push successful, CheckoutRequestID:', res.data.data.CheckoutRequestID);
+        toast.success('📲 Enter M-Pesa PIN on your phone. Status will update automatically.');
+        // Start status check immediately
+        checkPaymentStatus(token);
         setPaymentDetails({ checkoutId: res.data.data.CheckoutRequestID });
 
         // Start status checking after a brief delay
-        // Start checking sooner (after 2 seconds)
-        const initialTimeoutId = setTimeout(() => checkPaymentStatus(token), 2000);
+        // Start checking immediately after STK push
+        // Start checking immediately
+        checkPaymentStatus(token);
         setTimeoutId(initialTimeoutId);
       } else {
         setPaymentStatus('failed');
@@ -172,6 +179,8 @@ export default function MpesaPayment() {
     } catch (err) {
       setPaymentStatus('failed');
       setIsLoading(false);
+      const timestamp = new Date().toISOString();
+      console.error(`🚫 Payment error at ${timestamp}:`, err);
       toast.error(`🚫 Error: ${err.response?.data?.error || err.message}`);
     }
   };
