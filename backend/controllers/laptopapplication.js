@@ -164,4 +164,21 @@ exports.deleteApplication = async (req, res) => {
       error: 'An error occurred while deleting the application'
     });
   }
-}
+};
+
+// Student: Get their own applications
+exports.getUserApplications = async (req, res) => {
+  try {
+    const applications = await LaptopApplication.find({ student: req.user.id })
+      .populate('laptop', 'model brand spec price')
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json(applications);
+  } catch (err) {
+    console.error('❌ Error in getUserApplications:', err.message);
+    return res.status(500).json({
+      success: false,
+      error: 'An error occurred while fetching your applications'
+    });
+  }
+};

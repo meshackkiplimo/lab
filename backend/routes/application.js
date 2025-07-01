@@ -7,6 +7,7 @@ const {
   getApplications,
   updateApplicationStatus,
   deleteApplication,
+  getUserApplications
 } = require('../controllers/laptopapplication');
 
 // 🧑‍🎓 Student: Apply for a laptop
@@ -20,5 +21,7 @@ router.put('/:id/status', authMiddleware('admin'), updateApplicationStatus);
 // 🔐 Admin: Delete application (optional, not in original code)
 router.delete('/:id', authMiddleware('admin'), deleteApplication);
 
+// 🧑‍🎓 Student: Get their own applications
+router.get('/user', authMiddleware(), getUserApplications);
 
 module.exports = router;

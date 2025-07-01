@@ -115,6 +115,19 @@ class MpesaController {
       return res.status(500).json({ status: 'error', error: error.message });
     }
   }
+
+  // Get user's payment history
+  static async getUserPayments(req, res) {
+    try {
+      const payments = await Payment.find({ userId: req.user.id })
+        .sort({ createdAt: -1 });
+
+      return res.status(200).json(payments);
+    } catch (error) {
+      console.error('❌ Error fetching user payments:', error.message);
+      return res.status(500).json({ error: 'Error fetching payment history' });
+    }
+  }
 }
 
 module.exports = MpesaController;
