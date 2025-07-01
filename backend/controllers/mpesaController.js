@@ -4,10 +4,10 @@ const MpesaService = require('../services/mpesaService');
 class MpesaController {
   // 1. Initiate STK Push
   static async initiatePayment(req, res) {
-    const { phoneNumber, laptopId } = req.body;
+    const { phoneNumber, laptopId, amount } = req.body;
 
-    if (!phoneNumber || !laptopId) {
-      return res.status(400).json({ success: false, error: 'Phone number and laptop ID are required' });
+    if (!phoneNumber || !laptopId || !amount) {
+      return res.status(400).json({ success: false, error: 'Phone number, laptop ID, and amount are required' });
     }
 
     try {
@@ -26,7 +26,7 @@ class MpesaController {
 
       const totalPrice = laptop.price;
       const remainingBalance = lastPayment ? lastPayment.remainingBalance : totalPrice;
-      const monthlyPayment = (remainingBalance * 10) / 100; // 10% of remaining balance
+      const monthlyPayment = amount;
 
       console.log('💰 Initiating payment with:', {
         phoneNumber,
@@ -66,11 +66,10 @@ class MpesaController {
     }
   }
 
-  // 2. Handle M-Pesa Callback from Safaricom
+  // Rest of the controller methods remain the same...
   static async handleCallback(req, res) {
     try {
       const timestamp = new Date().toISOString();
-      // Log full request details
       console.log('🔥 M-Pesa Callback received:', {
         timestamp,
         body: req.body,
@@ -79,7 +78,6 @@ class MpesaController {
         method: req.method
       });
       
-      // Handle the nested structure
       const stkCallback = req.body?.Body?.stkCallback;
       if (!stkCallback) {
         console.error('Invalid callback data:', {
@@ -87,12 +85,10 @@ class MpesaController {
           body: req.body,
           error: 'Missing Body.stkCallback'
         });
-        // Always return 200 to M-Pesa to prevent retries
         return res.status(200).json({ message: 'Callback received but invalid structure' });
       }
 
       const {
-        MerchantRequestID,
         CheckoutRequestID,
         ResultCode,
         ResultDesc,
@@ -108,7 +104,7 @@ class MpesaController {
       let status;
       if (ResultCode === 0) {
         status = 'success';
-      } else if (ResultCode === 1032) { // User cancelled
+      } else if (ResultCode === 1032) {
         status = 'cancelled';
       } else {
         status = 'failed';
@@ -129,18 +125,16 @@ class MpesaController {
       payment.mpesaResultCode = ResultCode;
       payment.mpesaResultDesc = ResultDesc;
 
-      if (status === 'success') {
-        // Update remaining balance after successful payment
-        const newBalance = payment.remainingBalance - payment.amount;
-        payment.remainingBalance = Math.max(0, newBalance); // Ensure it doesn't go below 0
-      }
-
-      // Extract transaction details if successful
       if (status === 'success' && CallbackMetadata?.Item) {
+        // Extract transaction amount and update payment record
         const items = CallbackMetadata.Item;
+        const amountItem = items.find(item => item.Name === 'Amount');
         const receiptNumber = items.find(item => item.Name === 'MpesaReceiptNumber');
         const transactionDate = items.find(item => item.Name === 'TransactionDate');
 
+        if (amountItem) {
+          payment.amount = amountItem.Value;
+        }
         if (receiptNumber) {
           payment.mpesaReceiptNumber = receiptNumber.Value;
         }
@@ -148,27 +142,25 @@ class MpesaController {
           payment.transactionDate = transactionDate.Value.toString();
         }
 
+        // Update remaining balance
+        const newBalance = payment.remainingBalance - payment.amount;
+        payment.remainingBalance = Math.max(0, newBalance);
+
         console.log('💰 Transaction details:', {
+          amount: payment.amount,
           receipt: payment.mpesaReceiptNumber,
           date: payment.transactionDate
         });
       }
 
       await payment.save();
-      const logData = {
-        timestamp,
-        checkoutId: CheckoutRequestID,
-        status,
-        desc: ResultDesc,
-        receipt: payment.mpesaReceiptNumber,
-        resultCode: ResultCode
-      };
-      console.log(`✅ Payment processed:`, logData);
+      console.log('✅ Payment processed:', payment);
 
-      // Always return 200 to M-Pesa
       return res.status(200).json({
         message: 'Callback processed successfully',
-        ...logData
+        status: payment.status,
+        amount: payment.amount,
+        receipt: payment.mpesaReceiptNumber
       });
     } catch (err) {
       console.error('❌ Error handling callback:', err);
@@ -176,7 +168,6 @@ class MpesaController {
     }
   }
 
-  // 3. Check Payment Status (Frontend polling hits this)
   static async checkPaymentStatus(req, res) {
     try {
       const payment = await Payment.findOne({
@@ -189,16 +180,14 @@ class MpesaController {
         return res.status(404).json({ status: 'not_found' });
       }
 
-      // For pending payments, always check with Safaricom
       if (payment.status === 'pending') {
         try {
           console.log('🔄 Checking status with Safaricom for:', payment.checkoutId);
           const result = await MpesaService.queryTransactionStatus(payment.checkoutId);
           console.log('📊 Status check result:', result);
           
-          // Handle different M-Pesa result codes
           switch (result.ResultCode) {
-            case 0: // Success
+            case 0:
               payment.status = 'success';
               payment.mpesaResultDesc = 'Payment completed successfully';
               const newBalance = payment.remainingBalance - payment.amount;
@@ -206,20 +195,19 @@ class MpesaController {
               console.log('✅ Payment successful');
               break;
 
-            case 1032: // User cancelled on phone
+            case 1032:
               payment.status = 'cancelled';
               payment.mpesaResultDesc = 'Transaction cancelled by user';
               console.log('❌ User cancelled payment');
               break;
 
-            case 1037: // User cannot be reached/timeout
+            case 1037:
               payment.status = 'cancelled';
               payment.mpesaResultDesc = 'Payment cancelled - user not reachable';
               console.log('❌ User not reachable/timeout');
               break;
 
             default:
-              // For other codes, check if transaction is too old
               const twentySecondsAgo = new Date(Date.now() - 20 * 1000);
               if (payment.createdAt < twentySecondsAgo) {
                 payment.status = 'cancelled';
@@ -232,15 +220,9 @@ class MpesaController {
           
           if (payment.isModified()) {
             await payment.save();
-            console.log('💾 Payment updated:', {
-              status: payment.status,
-              desc: payment.mpesaResultDesc,
-              code: result.ResultCode
-            });
           }
         } catch (error) {
           console.error('Error querying M-Pesa status:', error);
-          // Check for timeout even if query fails
           const twentySecondsAgo = new Date(Date.now() - 20 * 1000);
           if (payment.createdAt < twentySecondsAgo) {
             payment.status = 'cancelled';
@@ -250,9 +232,9 @@ class MpesaController {
         }
       }
 
-      // Return updated status
       return res.status(200).json({
         status: payment.status,
+        amount: payment.amount,
         checkoutId: payment.checkoutId,
         mpesaReceiptNumber: payment.mpesaReceiptNumber,
         description: payment.mpesaResultDesc || ''
@@ -263,11 +245,11 @@ class MpesaController {
     }
   }
 
-  // Get user's payment history
   static async getUserPayments(req, res) {
     try {
       const payments = await Payment.find({ userId: req.user.id })
-        .sort({ createdAt: -1 });
+        .sort({ createdAt: -1 })
+        .populate('laptopId', 'model brand');
 
       return res.status(200).json(payments);
     } catch (error) {
@@ -276,18 +258,15 @@ class MpesaController {
     }
   }
 
-  // Get laptop payment details
   static async getLaptopPaymentDetails(req, res) {
     try {
       const { laptopId } = req.params;
 
-      // Get laptop details
       const laptop = await require('../models/laptop').findById(laptopId);
       if (!laptop) {
         return res.status(404).json({ error: 'Laptop not found' });
       }
 
-      // Get latest payment to calculate remaining balance
       const lastPayment = await Payment.findOne({
         userId: req.user.id,
         laptopId: laptopId,

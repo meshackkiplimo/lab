@@ -15,21 +15,24 @@ export default function MpesaPayment() {
   const [timeoutId, setTimeoutId] = useState(null);
   const [price, setPrice] = useState(0);
   const [monthlyPayment, setMonthlyPayment] = useState(0);
+  const [laptopId, setLaptopId] = useState('');
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const priceParam = Number(params.get('price'));
-    if (!priceParam) {
+    const laptopIdParam = params.get('laptopId');
+    
+    if (!priceParam || !laptopIdParam) {
       navigate('/available-laptops');
       return;
     }
 
     setPrice(priceParam);
+    setLaptopId(laptopIdParam);
     // Calculate monthly payment (10% of price)
     setMonthlyPayment((priceParam * 10) / 100);
   }, [navigate]);
 
-  // Cleanup on component unmount
   useEffect(() => {
     return () => {
       if (timeoutId) {
@@ -50,7 +53,7 @@ export default function MpesaPayment() {
   };
 
   const checkPaymentStatus = async (token, attempts = 0) => {
-    const maxAttempts = 30; // 30 seconds (30 * 1s)
+    const maxAttempts = 30;
 
     if (attempts >= maxAttempts) {
       setTimeoutId(null);
@@ -65,11 +68,12 @@ export default function MpesaPayment() {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      const { status, checkoutId, mpesaReceiptNumber, description } = statusRes.data;
+      const { status, amount, checkoutId, mpesaReceiptNumber, description } = statusRes.data;
 
       setPaymentDetails({
         checkoutId,
         mpesaReceiptNumber,
+        amount,
         description
       });
 
@@ -77,7 +81,7 @@ export default function MpesaPayment() {
         setTimeoutId(null);
         setPaymentStatus('success');
         setIsLoading(false);
-        toast.success(`✅ Payment successful! Receipt: ${mpesaReceiptNumber}`);
+        toast.success(`✅ Payment successful! Amount: KES ${amount} Receipt: ${mpesaReceiptNumber}`);
         setTimeout(() => navigate('/dashboard'), 3000);
       } else if (status === 'failed' || status === 'cancelled') {
         setTimeoutId(null);
@@ -85,10 +89,7 @@ export default function MpesaPayment() {
         setIsLoading(false);
         toast.error(description || (status === 'cancelled' ? '❌ Payment cancelled or timed out.' : '❌ Payment failed.'));
       } else {
-        // Schedule next check
-        // Poll very frequently (every 1 second) to catch success quickly
-        // Check very frequently in the beginning
-        const delay = attempts < 10 ? 1000 : 3000; // Every 1s for first 10 attempts, then every 3s
+        const delay = attempts < 10 ? 1000 : 3000;
         const newTimeoutId = setTimeout(() => checkPaymentStatus(token, attempts + 1), delay);
         setTimeoutId(newTimeoutId);
       }
@@ -101,7 +102,6 @@ export default function MpesaPayment() {
         setIsLoading(false);
         toast.error('Payment record not found');
       } else {
-        // On error, continue polling unless max attempts reached
         const newTimeoutId = setTimeout(() => checkPaymentStatus(token, attempts + 1), 3000);
         setTimeoutId(newTimeoutId);
       }
@@ -139,14 +139,6 @@ export default function MpesaPayment() {
         return;
       }
 
-      const params = new URLSearchParams(window.location.search);
-      const laptopId = params.get('laptopId');
-      if (!laptopId) {
-        toast.error('Laptop ID is required');
-        navigate('/available-laptops');
-        return;
-      }
-
       const res = await axios.post(
         `${Apidomain}/mpesa/initiate`,
         {
@@ -162,15 +154,11 @@ export default function MpesaPayment() {
       if (res.data.success) {
         console.log('📲 STK Push successful, CheckoutRequestID:', res.data.data.CheckoutRequestID);
         toast.success('📲 Enter M-Pesa PIN on your phone. Status will update automatically.');
-        // Start status check immediately
         checkPaymentStatus(token);
-        setPaymentDetails({ checkoutId: res.data.data.CheckoutRequestID });
-
-        // Start status checking after a brief delay
-        // Start checking immediately after STK push
-        // Start checking immediately
-        checkPaymentStatus(token);
-        setTimeoutId(initialTimeoutId);
+        setPaymentDetails({ 
+          checkoutId: res.data.data.CheckoutRequestID,
+          amount: monthlyPayment
+        });
       } else {
         setPaymentStatus('failed');
         setIsLoading(false);
@@ -201,7 +189,7 @@ export default function MpesaPayment() {
 
   const getStatusMessage = () => {
     if (paymentStatus === 'success' && paymentDetails?.mpesaReceiptNumber) {
-      return `✅ Payment Successful! Receipt: ${paymentDetails.mpesaReceiptNumber}`;
+      return `✅ Payment of KES ${paymentDetails.amount} Successful! Receipt: ${paymentDetails.mpesaReceiptNumber}`;
     }
 
     switch (paymentStatus) {
