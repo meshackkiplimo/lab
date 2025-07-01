@@ -3,53 +3,120 @@ import axios from 'axios';
 import { useAuth } from '../context/authcontext';
 import { Apidomain } from '../utils/ApiDomain';
 import './userStats.css';
+import jsPDF from "jspdf";
 
 export default function UserStats() {
   const { user } = useAuth();
   const [applications, setApplications] = useState([]);
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
+useEffect(() => {
+  const fetchUserData = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const [applicationsRes, paymentsRes] = await Promise.all([
+        axios.get(`${Apidomain}/applications/user`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        axios.get(`${Apidomain}/mpesa/user-payments`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+      ]);
 
-  useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const [applicationsRes, paymentsRes] = await Promise.all([
-          axios.get(`${Apidomain}/applications/user`, {
-            headers: { Authorization: `Bearer ${token}` }
-          }),
-          axios.get(`${Apidomain}/mpesa/user-payments`, {
-            headers: { Authorization: `Bearer ${token}` }
-          })
-        ]);
-
-        setApplications(applicationsRes.data);
-        setPayments(paymentsRes.data);
-        setLoading(false);
-      } catch (error) {
-        console.error('Error fetching user data:', error);
-        setLoading(false);
-      }
-    };
-
-    fetchUserData();
-  }, []);
-
-  const getStatusColor = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'approved':
-        return '#10b981';
-      case 'pending':
-        return '#f59e0b';
-      case 'rejected':
-      case 'failed':
-        return '#ef4444';
-      case 'success':
-        return '#10b981';
-      default:
-        return '#6b7280';
+      setApplications(applicationsRes.data);
+      setPayments(paymentsRes.data);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+      setLoading(false);
     }
   };
+
+  fetchUserData();
+}, []);
+
+  // --- Stats Aggregation ---
+  const totalApplications = applications.length;
+  const approvedApplications = applications.filter(app => app.status?.toLowerCase() === 'approved').length;
+  const pendingApplications = applications.filter(app => app.status?.toLowerCase() === 'pending').length;
+  const rejectedApplications = applications.filter(app => app.status?.toLowerCase() === 'rejected').length;
+  const totalPayments = payments.length;
+  const totalAmountPaid = payments
+    .filter(payment => payment.status?.toLowerCase() === 'success')
+    .reduce((sum, payment) => sum + (Number(payment.amount) || 0), 0);
+
+const getStatusColor = (status) => {
+  switch (status?.toLowerCase()) {
+    case 'approved':
+      return '#10b981';
+    case 'pending':
+      return '#f59e0b';
+    case 'rejected':
+    case 'failed':
+      return '#ef4444';
+    case 'success':
+      return '#10b981';
+    default:
+      return '#6b7280';
+  }
+};
+
+// Print receipt for a payment
+const handlePrintReceipt = async (payment) => {
+  const qrData = encodeURIComponent(`Transaction ID: ${payment._id}\nAmount: KES ${payment.amount}\nDate: ${new Date(payment.createdAt).toLocaleString()}`);
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${qrData}`;
+  // Fetch QR code as base64
+  const qrImg = await fetch(qrUrl).then(res => res.blob()).then(blob => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.readAsDataURL(blob);
+    });
+  });
+
+  // Create a slim PDF receipt
+  const doc = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: [58, 90] // Slim receipt size
+  });
+
+  doc.setFontSize(13);
+  doc.setTextColor(16, 185, 129);
+  doc.text("Payment Receipt", 29, 10, { align: "center" });
+
+  doc.setFontSize(9);
+  doc.setTextColor(80, 80, 80);
+  let y = 18;
+  doc.text("Transaction ID:", 5, y);
+  doc.text(String(payment._id), 25, y);
+  y += 6;
+  doc.text("Date:", 5, y);
+  doc.text(new Date(payment.createdAt).toLocaleString(), 25, y);
+  y += 6;
+  doc.text("Amount:", 5, y);
+  doc.text(`KES ${payment.amount}`, 25, y);
+  y += 6;
+  doc.text("Status:", 5, y);
+  doc.text(String(payment.status), 25, y);
+  y += 6;
+  doc.text("Method:", 5, y);
+  doc.text(String(payment.method), 25, y);
+
+  // QR code
+  y += 8;
+  doc.setTextColor(120, 120, 120);
+  doc.text("Scan for transaction", 29, y, { align: "center" });
+  y += 2;
+  doc.addImage(qrImg, "PNG", 19, y, 20, 20);
+
+  y += 24;
+  doc.setFontSize(8);
+  doc.setTextColor(80, 80, 80);
+  doc.text("Thank you for your payment.", 29, y, { align: "center" });
+
+  doc.save(`receipt_${payment._id}.pdf`);
+};
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -65,6 +132,51 @@ export default function UserStats() {
 
   return (
     <div className="dashboard">
+      {/* --- Stats Cards Section --- */}
+      <div className="stats-cards">
+        <div className="stats-card stats-apps">
+          <span className="stats-icon" role="img" aria-label="Applications">💻</span>
+          <div>
+            <div className="stats-value">{totalApplications}</div>
+            <div className="stats-label">Total Applications</div>
+          </div>
+        </div>
+        <div className="stats-card stats-approved">
+          <span className="stats-icon" role="img" aria-label="Approved">✅</span>
+          <div>
+            <div className="stats-value">{approvedApplications}</div>
+            <div className="stats-label">Approved</div>
+          </div>
+        </div>
+        <div className="stats-card stats-pending">
+          <span className="stats-icon" role="img" aria-label="Pending">⏳</span>
+          <div>
+            <div className="stats-value">{pendingApplications}</div>
+            <div className="stats-label">Pending</div>
+          </div>
+        </div>
+        <div className="stats-card stats-rejected">
+          <span className="stats-icon" role="img" aria-label="Rejected">❌</span>
+          <div>
+            <div className="stats-value">{rejectedApplications}</div>
+            <div className="stats-label">Rejected</div>
+          </div>
+        </div>
+        <div className="stats-card stats-payments">
+          <span className="stats-icon" role="img" aria-label="Payments">💰</span>
+          <div>
+            <div className="stats-value">{totalPayments}</div>
+            <div className="stats-label">Payments</div>
+          </div>
+        </div>
+        <div className="stats-card stats-amount">
+          <span className="stats-icon" role="img" aria-label="Amount Paid">🪙</span>
+          <div>
+            <div className="stats-value">KES {totalAmountPaid.toLocaleString()}</div>
+            <div className="stats-label">Total Paid</div>
+          </div>
+        </div>
+      </div>
       <div className="header">
         <h1>Welcome back, {user?.name}</h1>
         <p>Track your laptop applications and payments here</p>
@@ -122,6 +234,7 @@ export default function UserStats() {
                   <th>Amount</th>
                   <th>Status</th>
                   <th>Method</th>
+                  <th>Receipt</th>
                 </tr>
               </thead>
               <tbody>
@@ -141,6 +254,25 @@ export default function UserStats() {
                       </span>
                     </td>
                     <td>{payment.method}</td>
+                    <td>
+                      <button
+                        className="receipt-btn"
+                        onClick={() => handlePrintReceipt(payment)}
+                        style={{
+                          background: "#10b981",
+                          color: "#fff",
+                          border: "none",
+                          borderRadius: "0.375rem",
+                          padding: "0.4rem 1rem",
+                          cursor: "pointer",
+                          fontSize: "0.9rem",
+                          fontWeight: 500,
+                          transition: "background 0.2s"
+                        }}
+                      >
+                        Download PDF Receipt
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

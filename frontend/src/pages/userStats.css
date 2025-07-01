@@ -1,7 +1,8 @@
 .dashboard {
   padding: 2rem;
-  max-width: 1200px;
-  margin: 0 auto;
+  width: 100vw;
+  max-width: none;
+  margin: 0;
 }
 
 .header {
@@ -129,6 +130,53 @@
   font-size: 1.25rem;
   color: #6b7280;
 }
+/* Stats Cards Section */
+.stats-cards {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
+  width: 100vw;
+}
+
+.stats-card {
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border-radius: 0.75rem;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.08);
+  padding: 1.25rem 1rem;
+  transition: box-shadow 0.2s, transform 0.2s;
+  min-height: 90px;
+}
+
+.stats-card:hover {
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.16);
+  transform: translateY(-2px) scale(1.02);
+}
+
+.stats-icon {
+  font-size: 2rem;
+  margin-right: 1rem;
+}
+
+.stats-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.stats-label {
+  font-size: 0.95rem;
+  color: #6b7280;
+  margin-top: 0.15rem;
+}
+
+.stats-approved .stats-value { color: #10b981; }
+.stats-pending .stats-value { color: #f59e0b; }
+.stats-rejected .stats-value { color: #ef4444; }
+.stats-payments .stats-value { color: #2563eb; }
+.stats-amount .stats-value { color: #0ea5e9; }
 
 /* Responsive Design */
 @media (max-width: 768px) {
@@ -142,6 +190,12 @@
 
   .applications-grid {
     grid-template-columns: 1fr;
+  }
+
+  .stats-cards {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    width: 100vw;
   }
 
   .payments-table th,

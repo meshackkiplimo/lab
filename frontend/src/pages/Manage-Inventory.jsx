@@ -21,7 +21,7 @@ const ManageInventory = () => {
         email: app.student?.email,
         laptopBrand: `${app.laptop?.brand || ''} ${app.laptop?.model || ''}`.trim(),
         applicationStatus: app.status || 'Pending',
-        amountPaid: app.amountPaid || 0,
+     
       }));
 
       setInventory(formatted);
@@ -112,7 +112,6 @@ const ManageInventory = () => {
                 <th style={thStyle}>Email</th>
                 <th style={thStyle}>Laptop</th>
                 <th style={thStyle}>Status</th>
-                <th style={thStyle}>Amount Paid</th>
                 <th style={thStyle}>Actions</th>
                 <th style={thStyle}>Delete</th>
               </tr>
@@ -157,7 +156,7 @@ const ManageInventory = () => {
                         {item.applicationStatus}
                       </span>
                     </td>
-                    <td style={tdStyle}>Ksh {item.amountPaid}</td>
+                   
                     <td style={tdStyle}>
                       <select
                         onChange={(e) => updateStatus(item.id, e.target.value)}
