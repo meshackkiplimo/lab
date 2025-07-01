@@ -44,18 +44,26 @@ class MpesaController {
   // 2. Handle M-Pesa Callback from Safaricom
   static async handleCallback(req, res) {
     try {
-      console.log('🔥 M-Pesa Callback hit:', req.body);
+      console.log('🔥 M-Pesa Callback received:', JSON.stringify(req.body, null, 2));
       
+      // Handle the nested structure
+      const stkCallback = req.body?.Body?.stkCallback;
+      if (!stkCallback) {
+        console.error('Invalid callback data - missing Body.stkCallback:', req.body);
+        return res.status(400).json({ message: 'Invalid callback data structure' });
+      }
+
       const {
         MerchantRequestID,
         CheckoutRequestID,
         ResultCode,
-        ResultDesc
-      } = req.body;
+        ResultDesc,
+        CallbackMetadata
+      } = stkCallback;
 
       if (!CheckoutRequestID) {
-        console.error('Invalid callback data - missing CheckoutRequestID');
-        return res.status(400).json({ message: 'Invalid callback data' });
+        console.error('Invalid callback data - missing CheckoutRequestID:', stkCallback);
+        return res.status(400).json({ message: 'Missing CheckoutRequestID' });
       }
 
       // Map ResultCode to appropriate status
@@ -82,24 +90,38 @@ class MpesaController {
       payment.status = status;
       payment.mpesaResultCode = ResultCode;
       payment.mpesaResultDesc = ResultDesc;
-      
-      if (req.body.CallbackMetadata?.Item) {
-        const items = req.body.CallbackMetadata.Item;
-        payment.mpesaReceiptNumber = items.find(item => item.Name === 'MpesaReceiptNumber')?.Value || '';
-        payment.transactionDate = items.find(item => item.Name === 'TransactionDate')?.Value || '';
+
+      // Extract transaction details if successful
+      if (status === 'success' && CallbackMetadata?.Item) {
+        const items = CallbackMetadata.Item;
+        const receiptNumber = items.find(item => item.Name === 'MpesaReceiptNumber');
+        const transactionDate = items.find(item => item.Name === 'TransactionDate');
+
+        if (receiptNumber) {
+          payment.mpesaReceiptNumber = receiptNumber.Value;
+        }
+        if (transactionDate) {
+          payment.transactionDate = transactionDate.Value.toString();
+        }
+
+        console.log('💰 Transaction details:', {
+          receipt: payment.mpesaReceiptNumber,
+          date: payment.transactionDate
+        });
       }
 
       await payment.save();
       console.log(`✅ Payment updated:`, {
         checkoutId: CheckoutRequestID,
         status,
-        desc: ResultDesc
+        desc: ResultDesc,
+        receipt: payment.mpesaReceiptNumber
       });
 
       return res.status(200).json({ message: 'Callback processed successfully' });
     } catch (err) {
       console.error('❌ Error handling callback:', err);
-      return res.status(500).json({ message: 'Error processing callback' });
+      return res.status(500).json({ message: 'Error processing callback', error: err.message });
     }
   }
 
