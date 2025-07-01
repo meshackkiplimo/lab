@@ -9,25 +9,19 @@ const path = require('path');
 const app = express();
 
 // Middleware
-// Allow CORS for frontend and M-Pesa callback
+// Enable CORS for all routes
 app.use(cors({
-  origin: (origin, callback) => {
-    const allowedOrigins = [
-      'http://localhost:5173',
-      'https://6696-41-89-198-6.ngrok-free.app',
-      'https://lab-c85c.onrender.com'
-    ];
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(null, true); // Allow all origins for M-Pesa callback
-    }
-  },
-  credentials: true
+  origin: 'http://localhost:5173', 
+  // origin for mpesa callback
+
+
+  methods: 'GET,POST,PUT,DELETE,OPTIONS', // Allow specific methods
+  allowedHeaders: 'Content-Type,Authorization' // Allow specific headers
 }));
 
-app.use(express.json({ limit: '10mb' }));
+
+// Parse JSON payloads
+app.use(express.json());
 
 // Serve static frontend build files from dist
 app.use(express.static(path.join(__dirname, 'dist')));

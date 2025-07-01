@@ -5,6 +5,9 @@ import Applications from './pages/application.jsx';
 import MpesaPayment from './pages/mpesapayment';
 import Login from './pages/login';
 import Home from './pages/home';
+import About from './pages/about';
+import Services from './pages/services';
+import Contact from './pages/contact';
 import AddLaptop from './pages/addLaptop.jsx';
 import ProtectedRoute from './components/protectedroute';
 import Layout from './components/layout';
@@ -20,6 +23,9 @@ export default function App() {
     <Routes>
       {/* 🔓 Public Routes */}
       <Route path="/" element={<Home />} />
+      <Route path="/about" element={<About />} />
+      <Route path="/services" element={<Services />} />
+      <Route path="/contact" element={<Contact />} />
       <Route path="/login" element={<Login />} />
 
       {/* 🔐 Protected Routes */}

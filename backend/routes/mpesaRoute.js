@@ -7,8 +7,23 @@ const authMiddleware = require('../middleware/auth');
 
 // M-Pesa payment routes
 router.post('/initiate', authMiddleware(), MpesaController.initiatePayment);
-// M-Pesa callback should be public (no auth) since Safaricom needs to access it
-router.post('/callback', MpesaController.handleCallback);
+// M-Pesa callback - public endpoint with no auth and detailed logging
+router.post('/callback', (req, res, next) => {
+  console.log('👉 Callback route hit:', {
+    timestamp: new Date().toISOString(),
+    method: req.method,
+    headers: req.headers,
+    path: req.path
+  });
+  next();
+}, MpesaController.handleCallback);
+// Add OPTIONS handling for the callback URL
+router.options('/callback', (req, res) => {
+  res.header('Access-Control-Allow-Methods', 'POST');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  res.status(200).send();
+});
+
 router.get('/status', authMiddleware(), MpesaController.checkPaymentStatus);
 // New route for user payments
 router.get('/user-payments', authMiddleware(), MpesaController.getUserPayments);

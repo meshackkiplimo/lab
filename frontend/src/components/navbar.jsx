@@ -1,18 +1,28 @@
-
-// ===== src/components/Navbar.jsx =====
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../context/authcontext';
+import { useNavigate } from 'react-router-dom';
+import './navbar.css';
 
 export default function Navbar() {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
+
   return (
-    <nav className="bg-gray-900 text-white px-6 py-4 shadow-md flex justify-between items-center">
-      <h1 className="text-2xl font-bold text-lime-400">LaptopSys</h1>
-      <div className="space-x-4 text-lg">
-        <Link to="/dashboard" className="hover:text-lime-400">Dashboard</Link>
-        <Link to="/available-laptops" className="hover:text-lime-400">Laptops</Link>
-        {/* <Link to="/applications" className="hover:text-lime-400">Applications</Link> */}
-        <Link to="/mpesa" className="hover:text-lime-400">Mpesa</Link>
-        <Link to="/" className="hover:text-red-400">Logout</Link>
+    <nav className="main-navbar">
+      <h1 className="navbar-brand">SLFS System</h1>
+      <div className="nav-links">
+        <Link to="/dashboard" className="nav-link">Dashboard</Link>
+        <Link to="/available-laptops" className="nav-link">Laptops</Link>
+        <Link to="/mpesa-payment" className="nav-link">Mpesa</Link>
+        <Link to="/user-stats" className="nav-link">Stats</Link>
+        <Link to="/clearance" className="nav-link">Clearance</Link>
+        <button onClick={handleLogout} className="logout-btn">Logout</button>
       </div>
     </nav>
   );

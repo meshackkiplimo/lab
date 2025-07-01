@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
-import api from '../services/api';
-import Layout from '../components/layout';
+import PublicNavbar from '../components/PublicNavbar';
 import { useAuth } from '../context/authcontext';
+import './public-pages.css';
 
 export default function Login() {
   const [role, setRole] = useState('student');
@@ -16,7 +16,7 @@ export default function Login() {
   const [showRegister, setShowRegister] = useState(false);
   const navigate = useNavigate();
 
-  const { user, login } = useAuth();
+  const { user, login, register } = useAuth();
 
   const handleRoleChange = (newRole) => {
     setRole(newRole);
@@ -33,11 +33,11 @@ export default function Login() {
     e.preventDefault();
     setError('');
     setSuccess('');
-    const success = await login(email, password);
-    if (success) {
+    const loginSuccess = await login(email, password);
+    if (loginSuccess) {
       navigate('/dashboard');
     } else {
-      setError('❌ Invalid credentials. Try again.');
+      setError('❌ Invalid credentials. Please try again.');
     }
   };
 
@@ -45,159 +45,90 @@ export default function Login() {
     e.preventDefault();
     setError('');
     setSuccess('');
+    
     if (password !== confirmPassword) {
       setError('❌ Passwords do not match.');
       return;
     }
-    try {
-      await api.post('/auth/register', {
-        firstName,
-        lastName,
-        email,
-        password,
-        role,
-      });
-      setSuccess('✅ Registration successful! Please login.');
+
+    const { success: registerSuccess, error: registerError } = await register({
+      firstName,
+      lastName,
+      email,
+      password,
+      role,
+    });
+
+    if (registerSuccess) {
+      setSuccess('✅ Registration successful! Please log in.');
       setShowRegister(false);
+      // Clear form
       setEmail('');
       setPassword('');
       setConfirmPassword('');
       setFirstName('');
       setLastName('');
       setRole('student');
-    } catch (err) {
-      setError('❌ Registration failed. Email may already be in use.');
+    } else {
+      setError(`❌ ${registerError || 'Registration failed. Please try again.'}`);
     }
   };
 
   if (user) return <Navigate to="/dashboard" />;
 
   return (
-    <Layout>
-      <main
-        style={{
-          flexGrow: 1,
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          padding: '2rem',
-          boxSizing: 'border-box',
-          width: '100%',
-        }}
-      >
-        <div
-          style={{
-            backgroundColor: 'white',
-            padding: '3rem 2.5rem',
-            borderRadius: '12px',
-            boxShadow: '0 12px 28px rgba(0, 0, 0, 0.1)',
-            width: '100%',
-            maxWidth: '420px',
-          }}
-        >
+    <div className="page-container">
+      <PublicNavbar />
+      <div className="content-wrapper">
+        <div className="auth-card">
           {!showRegister ? (
             <>
-              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '2rem' }}>
+              <div className="role-selector">
                 <button
                   onClick={() => handleRoleChange('student')}
-                  style={{
-                    flex: 1,
-                    padding: '0.75rem',
-                    fontWeight: '600',
-                    backgroundColor: role === 'student' ? '#2563eb' : '#e5e7eb',
-                    color: role === 'student' ? 'white' : '#4b5563',
-                    border: 'none',
-                    borderRadius: '8px 0 0 8px',
-                    cursor: 'pointer',
-                    transition: 'background-color 0.3s ease',
-                  }}
+                  className={`role-btn ${role === 'student' ? 'active' : ''} left`}
                 >
                   Student Login
                 </button>
                 <button
                   onClick={() => handleRoleChange('admin')}
-                  style={{
-                    flex: 1,
-                    padding: '0.75rem',
-                    fontWeight: '600',
-                    backgroundColor: role === 'admin' ? '#2563eb' : '#e5e7eb',
-                    color: role === 'admin' ? 'white' : '#4b5563',
-                    border: 'none',
-                    borderRadius: '0 8px 8px 0',
-                    cursor: 'pointer',
-                    transition: 'background-color 0.3s ease',
-                  }}
+                  className={`role-btn ${role === 'admin' ? 'active' : ''} right`}
                 >
                   Admin Login
                 </button>
               </div>
 
-              <h2 style={{ fontSize: '2.5rem', fontWeight: '700', color: '#2c3e50', marginBottom: '1.5rem', textAlign: 'center' }}>
+              <h2 className="auth-title">
                 {role === 'admin' ? 'Admin' : 'Student'} Login
               </h2>
 
-              {error && (
-                <div style={{ backgroundColor: '#fee2e2', color: '#b91c1c', padding: '0.75rem 1rem', borderRadius: '6px', marginBottom: '1rem', textAlign: 'center', fontSize: '0.9rem', border: '1px solid #fca5a5' }}>
-                  {error}
-                </div>
-              )}
+              {error && <div className="error-message">{error}</div>}
+              {success && <div className="success-message">{success}</div>}
 
-              {success && (
-                <div style={{ backgroundColor: '#d1fae5', color: '#065f46', padding: '0.75rem 1rem', borderRadius: '6px', marginBottom: '1rem', textAlign: 'center', fontSize: '0.9rem', border: '1px solid #34d399' }}>
-                  {success}
-                </div>
-              )}
-
-              <form onSubmit={handleSubmitLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <label style={{ marginBottom: '0.5rem', fontWeight: '600', color: '#4b5563' }}>Email Address</label>
+              <form onSubmit={handleSubmitLogin} className="auth-form">
+                <div className="form-group">
+                  <label>Email Address</label>
                   <input
                     type="email"
                     placeholder={`${role}@example.com`}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    style={{
-                      padding: '0.75rem 1rem',
-                      borderRadius: '8px',
-                      border: '1px solid #cbd5e1',
-                      fontSize: '1rem',
-                      outline: 'none',
-                    }}
                   />
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <label style={{ marginBottom: '0.5rem', fontWeight: '600', color: '#4b5563' }}>Password</label>
+                <div className="form-group">
+                  <label>Password</label>
                   <input
                     type="password"
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    style={{
-                      padding: '0.75rem 1rem',
-                      borderRadius: '8px',
-                      border: '1px solid #cbd5e1',
-                      fontSize: '1rem',
-                      outline: 'none',
-                    }}
                   />
                 </div>
 
-                <button
-                  type="submit"
-                  style={{
-                    padding: '1rem',
-                    backgroundColor: '#2563eb',
-                    color: 'white',
-                    fontWeight: '700',
-                    fontSize: '1.1rem',
-                    borderRadius: '10px',
-                    cursor: 'pointer',
-                    border: 'none',
-                  }}
-                >
+                <button type="submit" className="auth-submit-btn">
                   Log In
                 </button>
               </form>
@@ -214,157 +145,86 @@ export default function Login() {
                   setLastName('');
                   setRole('student');
                 }}
-                style={{
-                  marginTop: '2rem',
-                  color: '#2563eb',
-                  cursor: 'pointer',
-                  textAlign: 'center',
-                  fontWeight: '600',
-                }}
+                className="auth-switch-text"
               >
                 Don't have an account? Register here
               </p>
             </>
           ) : (
             <>
-              <h2 style={{ fontSize: '2.5rem', fontWeight: '700', color: '#2c3e50', marginBottom: '1.5rem', textAlign: 'center' }}>
-                Register Account
-              </h2>
+              <h2 className="auth-title">Register Account</h2>
 
-              {error && (
-                <div style={{ backgroundColor: '#fee2e2', color: '#b91c1c', padding: '0.75rem 1rem', borderRadius: '6px', marginBottom: '1rem', textAlign: 'center', fontSize: '0.9rem', border: '1px solid #fca5a5' }}>
-                  {error}
-                </div>
-              )}
+              {error && <div className="error-message">{error}</div>}
+              {success && <div className="success-message">{success}</div>}
 
-              {success && (
-                <div style={{ backgroundColor: '#d1fae5', color: '#065f46', padding: '0.75rem 1rem', borderRadius: '6px', marginBottom: '1rem', textAlign: 'center', fontSize: '0.9rem', border: '1px solid #34d399' }}>
-                  {success}
-                </div>
-              )}
-
-              <form onSubmit={handleSubmitRegister} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <label style={{ marginBottom: '0.5rem', fontWeight: '600', color: '#4b5563' }}>First Name</label>
+              <form onSubmit={handleSubmitRegister} className="auth-form">
+                <div className="form-group">
+                  <label>First Name</label>
                   <input
                     type="text"
                     placeholder="John"
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
                     required
-                    style={{
-                      padding: '0.75rem 1rem',
-                      borderRadius: '8px',
-                      border: '1px solid #cbd5e1',
-                      fontSize: '1rem',
-                      outline: 'none',
-                    }}
                   />
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <label style={{ marginBottom: '0.5rem', fontWeight: '600', color: '#4b5563' }}>Last Name</label>
+                <div className="form-group">
+                  <label>Last Name</label>
                   <input
                     type="text"
                     placeholder="Doe"
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
                     required
-                    style={{
-                      padding: '0.75rem 1rem',
-                      borderRadius: '8px',
-                      border: '1px solid #cbd5e1',
-                      fontSize: '1rem',
-                      outline: 'none',
-                    }}
                   />
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <label style={{ marginBottom: '0.5rem', fontWeight: '600', color: '#4b5563' }}>Email Address</label>
+                <div className="form-group">
+                  <label>Email Address</label>
                   <input
                     type="email"
                     placeholder="email@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    style={{
-                      padding: '0.75rem 1rem',
-                      borderRadius: '8px',
-                      border: '1px solid #cbd5e1',
-                      fontSize: '1rem',
-                      outline: 'none',
-                    }}
                   />
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <label style={{ marginBottom: '0.5rem', fontWeight: '600', color: '#4b5563' }}>Password</label>
+                <div className="form-group">
+                  <label>Password</label>
                   <input
                     type="password"
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    style={{
-                      padding: '0.75rem 1rem',
-                      borderRadius: '8px',
-                      border: '1px solid #cbd5e1',
-                      fontSize: '1rem',
-                      outline: 'none',
-                    }}
                   />
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <label style={{ marginBottom: '0.5rem', fontWeight: '600', color: '#4b5563' }}>Confirm Password</label>
+                <div className="form-group">
+                  <label>Confirm Password</label>
                   <input
                     type="password"
                     placeholder="••••••••"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     required
-                    style={{
-                      padding: '0.75rem 1rem',
-                      borderRadius: '8px',
-                      border: '1px solid #cbd5e1',
-                      fontSize: '1rem',
-                      outline: 'none',
-                    }}
                   />
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <label style={{ marginBottom: '0.5rem', fontWeight: '600', color: '#4b5563' }}>Select Role</label>
+                <div className="form-group">
+                  <label>Select Role</label>
                   <select
                     value={role}
                     onChange={(e) => setRole(e.target.value)}
-                    style={{
-                      padding: '0.75rem 1rem',
-                      borderRadius: '8px',
-                      border: '1px solid #cbd5e1',
-                      fontSize: '1rem',
-                      outline: 'none',
-                    }}
                   >
                     <option value="student">Student</option>
                     <option value="admin">Admin</option>
                   </select>
                 </div>
 
-                <button
-                  type="submit"
-                  style={{
-                    padding: '1rem',
-                    backgroundColor: '#2563eb',
-                    color: 'white',
-                    fontWeight: '700',
-                    fontSize: '1.1rem',
-                    borderRadius: '10px',
-                    cursor: 'pointer',
-                    border: 'none',
-                  }}
-                >
+                <button type="submit" className="auth-submit-btn">
                   Register
                 </button>
               </form>
@@ -381,20 +241,14 @@ export default function Login() {
                   setLastName('');
                   setRole('student');
                 }}
-                style={{
-                  marginTop: '2rem',
-                  color: '#2563eb',
-                  cursor: 'pointer',
-                  textAlign: 'center',
-                  fontWeight: '600',
-                }}
+                className="auth-switch-text"
               >
                 Already have an account? Log in here
               </p>
             </>
           )}
         </div>
-      </main>
-    </Layout>
+      </div>
+    </div>
   );
 }

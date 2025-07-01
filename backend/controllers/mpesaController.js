@@ -70,13 +70,25 @@ class MpesaController {
   static async handleCallback(req, res) {
     try {
       const timestamp = new Date().toISOString();
-      console.log('🔥 M-Pesa Callback received at ' + timestamp + ':', JSON.stringify(req.body, null, 2));
+      // Log full request details
+      console.log('🔥 M-Pesa Callback received:', {
+        timestamp,
+        body: req.body,
+        headers: req.headers,
+        url: req.url,
+        method: req.method
+      });
       
       // Handle the nested structure
       const stkCallback = req.body?.Body?.stkCallback;
       if (!stkCallback) {
-        console.error('Invalid callback data - missing Body.stkCallback:', req.body);
-        return res.status(400).json({ message: 'Invalid callback data structure' });
+        console.error('Invalid callback data:', {
+          timestamp,
+          body: req.body,
+          error: 'Missing Body.stkCallback'
+        });
+        // Always return 200 to M-Pesa to prevent retries
+        return res.status(200).json({ message: 'Callback received but invalid structure' });
       }
 
       const {
@@ -143,14 +155,21 @@ class MpesaController {
       }
 
       await payment.save();
-      console.log(`✅ Payment updated:`, {
+      const logData = {
+        timestamp,
         checkoutId: CheckoutRequestID,
         status,
         desc: ResultDesc,
-        receipt: payment.mpesaReceiptNumber
-      });
+        receipt: payment.mpesaReceiptNumber,
+        resultCode: ResultCode
+      };
+      console.log(`✅ Payment processed:`, logData);
 
-      return res.status(200).json({ message: 'Callback processed successfully' });
+      // Always return 200 to M-Pesa
+      return res.status(200).json({
+        message: 'Callback processed successfully',
+        ...logData
+      });
     } catch (err) {
       console.error('❌ Error handling callback:', err);
       return res.status(500).json({ message: 'Error processing callback', error: err.message });
