@@ -15,6 +15,7 @@ import NotFound from './pages/notfound';
 import Clearance from './pages/clearance';
 import ManageInventory from './pages/Manage-Inventory';
 import UserStats from './pages/userStats.jsx';
+import ForgotPassword from './pages/forgotPassword.jsx';
 
 
 
@@ -27,6 +28,7 @@ export default function App() {
       <Route path="/services" element={<Services />} />
       <Route path="/contact" element={<Contact />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
 
       {/* 🔐 Protected Routes */}
       <Route

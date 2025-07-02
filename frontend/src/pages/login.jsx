@@ -132,6 +132,13 @@ export default function Login() {
                   Log In
                 </button>
               </form>
+              <p
+                className="forgot-password-link"
+                style={{ color: "#2563eb", cursor: "pointer", marginTop: "10px", textAlign: "right" }}
+                onClick={() => navigate("/forgot-password")}
+              >
+                Forgot Password?
+              </p>
 
               <p
                 onClick={() => {
