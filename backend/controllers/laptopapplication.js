@@ -173,7 +173,19 @@ exports.getUserApplications = async (req, res) => {
       .populate('laptop', 'model brand spec price')
       .sort({ createdAt: -1 });
 
-    return res.status(200).json(applications);
+    // Map applications to include laptopDetails for frontend compatibility
+    const appsWithDetails = applications.map(app => {
+      const laptop = app.laptop || {};
+      return {
+        ...app.toObject(),
+        laptopDetails: {
+          model: laptop.model || 'N/A',
+          price: laptop.price || 'N/A',
+          name: laptop.brand || 'Laptop',
+        }
+      };
+    });
+    return res.status(200).json(appsWithDetails);
   } catch (err) {
     console.error('❌ Error in getUserApplications:', err.message);
     return res.status(500).json({
