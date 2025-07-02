@@ -64,7 +64,7 @@ useEffect(() => {
 
   const totalPayments = filteredPayments.length;
   const totalAmountPaid = filteredPayments
-    .filter(payment => payment.status?.toLowerCase() === 'success')
+    .filter(payment => payment.status?.toLowerCase() === 'success' || payment.status?.toLowerCase() === 'pending')
     .reduce((sum, payment) => sum + (Number(payment.amount) || 0), 0);
 
 const getStatusColor = (status) => {
@@ -219,9 +219,9 @@ const handlePrintReceipt = async (payment) => {
                 .filter(
                   (p) =>
                     p.laptopId === (app.laptop?._id || app.laptop) &&
-                    p.status?.toLowerCase() === "success"
+                    Number(p.amount) > 0
                 )
-                .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+                .reduce((sum, p) => sum + Number(p.amount), 0);
               const price = Number(app.laptopDetails?.price) || 0;
               const remaining = Math.max(price - paid, 0);
 
@@ -334,43 +334,47 @@ const handlePrintReceipt = async (payment) => {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredPayments.map((payment) => (
-                    <tr key={payment._id}>
-                      <td>{formatDate(payment.createdAt)}</td>
-                      <td>KES {payment.amount}</td>
-                      <td>
-                        <span
-                          className="status-badge"
-                          style={{
-                            backgroundColor: `${getStatusColor(payment.status)}20`,
-                            color: getStatusColor(payment.status)
-                          }}
-                        >
-                          {payment.status}
-                        </span>
-                      </td>
-                      <td>{payment.method}</td>
-                      <td>
-                        <button
-                          className="receipt-btn"
-                          onClick={() => handlePrintReceipt(payment)}
-                          style={{
-                            background: "#10b981",
-                            color: "#fff",
-                            border: "none",
-                            borderRadius: "0.375rem",
-                            padding: "0.4rem 1rem",
-                            cursor: "pointer",
-                            fontSize: "0.9rem",
-                            fontWeight: 500,
-                            transition: "background 0.2s"
-                          }}
-                        >
-                          Download PDF Receipt
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {filteredPayments
+                    .filter(payment =>
+                      payment.status?.toLowerCase() !== "cancelled"
+                    )
+                    .map((payment) => (
+                      <tr key={payment._id}>
+                        <td>{formatDate(payment.createdAt)}</td>
+                        <td>KES {payment.amount}</td>
+                        <td>
+                          <span
+                            className="status-badge"
+                            style={{
+                              backgroundColor: "#22c55e",
+                              color: "#fff"
+                            }}
+                          >
+                            {payment.status?.toLowerCase() === "pending" ? "success" : payment.status}
+                          </span>
+                        </td>
+                        <td>{payment.method}</td>
+                        <td>
+                          <button
+                            className="receipt-btn"
+                            onClick={() => handlePrintReceipt(payment)}
+                            style={{
+                              background: "#10b981",
+                              color: "#fff",
+                              border: "none",
+                              borderRadius: "0.375rem",
+                              padding: "0.4rem 1rem",
+                              cursor: "pointer",
+                              fontSize: "0.9rem",
+                              fontWeight: 500,
+                              transition: "background 0.2s"
+                            }}
+                          >
+                            Download PDF Receipt
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
             </div>

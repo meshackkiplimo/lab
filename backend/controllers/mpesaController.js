@@ -125,8 +125,8 @@ class MpesaController {
       payment.mpesaResultCode = ResultCode;
       payment.mpesaResultDesc = ResultDesc;
 
-      if (status === 'success' && CallbackMetadata?.Item) {
-        // Extract transaction amount and update payment record
+      // Always extract transaction amount and update payment record if present
+      if (CallbackMetadata?.Item) {
         const items = CallbackMetadata.Item;
         const amountItem = items.find(item => item.Name === 'Amount');
         const receiptNumber = items.find(item => item.Name === 'MpesaReceiptNumber');
@@ -142,9 +142,11 @@ class MpesaController {
           payment.transactionDate = transactionDate.Value.toString();
         }
 
-        // Update remaining balance
-        const newBalance = payment.remainingBalance - payment.amount;
-        payment.remainingBalance = Math.max(0, newBalance);
+        // Update remaining balance only if status is success
+        if (status === 'success') {
+          const newBalance = payment.remainingBalance - payment.amount;
+          payment.remainingBalance = Math.max(0, newBalance);
+        }
 
         console.log('💰 Transaction details:', {
           amount: payment.amount,
