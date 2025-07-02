@@ -213,29 +213,76 @@ const handlePrintReceipt = async (payment) => {
           </div>
         ) : (
           <div className="applications-grid">
-            {applications.map((app) => (
-              <div key={app._id} className="application-card">
-                <div className="card-header">
-                  <div>
-                    <h3>{app.laptopDetails?.name || 'Laptop Application'}</h3>
-                    <p className="date">Applied on {formatDate(app.createdAt)}</p>
+            {applications.map((app) => {
+              // Find all successful payments for this laptop
+              const paid = payments
+                .filter(
+                  (p) =>
+                    p.laptopId === (app.laptop?._id || app.laptop) &&
+                    p.status?.toLowerCase() === "success"
+                )
+                .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+              const price = Number(app.laptopDetails?.price) || 0;
+              const remaining = Math.max(price - paid, 0);
+
+              return (
+                <div
+                  key={app._id}
+                  className="application-card"
+                  style={{
+                    position: "relative",
+                    minHeight: "180px",
+                    paddingBottom: "56px",
+                    boxSizing: "border-box",
+                  }}
+                >
+                  <div className="card-header">
+                    <div>
+                      <h3>{app.laptopDetails?.name || "Laptop Application"}</h3>
+                      <p className="date">Applied on {formatDate(app.createdAt)}</p>
+                    </div>
+                    <span
+                      className="status-badge"
+                      style={{
+                        backgroundColor: `${getStatusColor(app.status)}20`,
+                        color: getStatusColor(app.status),
+                      }}
+                    >
+                      {app.status}
+                    </span>
                   </div>
-                  <span 
-                    className="status-badge"
+                  <div className="card-details" style={{ marginBottom: "24px" }}>
+                    <p>Model: {app.laptopDetails?.model || "N/A"}</p>
+                    <p>Price: KES {app.laptopDetails?.price || "N/A"}</p>
+                  </div>
+                  <div
                     style={{
-                      backgroundColor: `${getStatusColor(app.status)}20`,
-                      color: getStatusColor(app.status)
+                      position: "absolute",
+                      right: "18px",
+                      bottom: "18px",
+                      background: "#22c55e",
+                      borderRadius: "8px",
+                      padding: "0.35rem 0.7rem",
+                      fontSize: "0.93rem",
+                      color: "#fff",
+                      boxShadow: "0 2px 8px rgba(34,197,94,0.10)",
+                      minWidth: "130px",
+                      textAlign: "right",
+                      zIndex: 2,
+                      fontWeight: 500,
+                      letterSpacing: "0.01em"
                     }}
                   >
-                    {app.status}
-                  </span>
+                    <div>
+                      Paid: <span style={{ fontWeight: 700 }}>KES {paid.toLocaleString()}</span>
+                    </div>
+                    <div>
+                      Remaining: <span style={{ fontWeight: 700 }}>KES {remaining.toLocaleString()}</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="card-details">
-                  <p>Model: {app.laptopDetails?.model || 'N/A'}</p>
-                  <p>Price: KES {app.laptopDetails?.price || 'N/A'}</p>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
