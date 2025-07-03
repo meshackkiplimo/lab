@@ -28,7 +28,8 @@ export default function MpesaPayment() {
     }
     setPrice(priceParam);
     setLaptopId(laptopIdParam);
-    setMonthlyPayment((priceParam * 10) / 100);
+    // Default to 10% but allow any amount up to remaining balance
+    setMonthlyPayment(Math.min((priceParam * 10) / 100, priceParam));
   }, [navigate]);
 
   useEffect(() => {
@@ -185,7 +186,7 @@ export default function MpesaPayment() {
       case 'waiting':
         return '⏳ Waiting for M-Pesa confirmation...';
       default:
-        return `Pay KES ${monthlyPayment.toFixed(2)} (10% of ${price})`;
+        return `Pay any amount up to KES ${price.toFixed(2)} (Suggested: KES ${monthlyPayment.toFixed(2)})`;
     }
   };
 
