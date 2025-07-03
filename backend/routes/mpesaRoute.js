@@ -25,7 +25,10 @@ router.options('/callback', (req, res) => {
 });
 
 router.get('/status', authMiddleware(), MpesaController.checkPaymentStatus);
-// New route for user payments
+// Admin route to get all payments
+router.get('/payments', authMiddleware(), MpesaController.getAllPayments);
+
+// User route to get their own payments
 router.get('/user-payments', authMiddleware(), MpesaController.getUserPayments);
 
 // Get laptop payment details

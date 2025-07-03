@@ -2,7 +2,6 @@ const Payment = require('../models/payment');
 const MpesaService = require('../services/mpesaService');
 
 class MpesaController {
-  // 1. Initiate STK Push
   static async initiatePayment(req, res) {
     const { phoneNumber, laptopId, amount } = req.body;
 
@@ -20,86 +19,108 @@ class MpesaController {
       // Get latest payment to check remaining balance
       const lastPayment = await Payment.findOne({
         userId: req.user.id,
-        laptopId: laptopId,
-        status: 'success'
+        laptopId: laptopId
       }).sort({ createdAt: -1 });
 
       const totalPrice = laptop.price;
-      const remainingBalance = lastPayment ? lastPayment.remainingBalance : totalPrice;
-      
-      // Only validate that payment doesn't exceed remaining balance
-      if (amount > remainingBalance) {
-        return res.status(400).json({
-          success: false,
-          error: 'Payment amount cannot exceed remaining balance'
-        });
-      }
-      
-      const monthlyPayment = amount;
+      const paymentAmount = Number(amount);
+      const currentRemaining = lastPayment ? lastPayment.remainingBalance : totalPrice;
 
-      console.log('💰 Initiating payment with:', {
-        phoneNumber,
-        amount: monthlyPayment,
-        remainingBalance,
+      console.log('💰 Payment request:', {
         totalPrice,
-        callbackUrl: process.env.MPESA_CALLBACK_URL,
-        timestamp: new Date().toISOString()
+        paymentAmount,
+        currentRemaining,
+        userId: req.user.id,
+        laptopId
       });
 
+      if (!paymentAmount || isNaN(paymentAmount) || paymentAmount <= 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid payment amount'
+        });
+      }
+
+      if (paymentAmount > currentRemaining) {
+        return res.status(400).json({
+          success: false,
+          error: `Payment amount ${paymentAmount} cannot exceed remaining balance ${currentRemaining}`
+        });
+      }
+
+      // Calculate new remaining balance
+      const newRemaining = Math.max(0, currentRemaining - paymentAmount);
+
+      console.log('🚀 Initiating STK push:', {
+        amount: paymentAmount,
+        phone: phoneNumber
+      });
+
+      // Initiate M-Pesa payment
       const response = await MpesaService.initiateStkPush(
         phoneNumber,
-        monthlyPayment,
-        'Monthly laptop payment'
+        paymentAmount,
+        'Laptop Payment'
       );
 
-      // Store the payment record
+      console.log('✅ STK push successful:', response);
+
+      // Create payment record
       const payment = new Payment({
         userId: req.user.id,
         laptopId: laptopId,
         totalPrice: totalPrice,
-        remainingBalance: remainingBalance,
-        amount: monthlyPayment,
+        remainingBalance: newRemaining,
+        amount: paymentAmount,
         method: 'Mpesa',
         status: 'pending',
         checkoutId: response.CheckoutRequestID,
-        mpesaResultDesc: 'Pending STK push confirmation'
+        mpesaResultDesc: `Payment of KES ${paymentAmount}, remaining balance KES ${newRemaining}`
+      });
+
+      console.log('💾 Saving payment record:', {
+        userId: req.user.id,
+        amount: paymentAmount,
+        remaining: newRemaining,
+        checkoutId: response.CheckoutRequestID
       });
 
       await payment.save();
-      console.log('✅ Payment created:', payment);
 
-      return res.status(200).json({ success: true, data: response });
+      console.log('✅ Payment saved:', {
+        id: payment._id,
+        amount: paymentAmount,
+        remaining: newRemaining
+      });
+
+      return res.status(200).json({
+        success: true,
+        data: response
+      });
+
     } catch (error) {
-      console.error('❌ Payment initiation error:', error.message);
-      return res.status(500).json({ success: false, error: error.message });
+      console.error('❌ Payment error:', error);
+      return res.status(500).json({
+        success: false,
+        error: error.message
+      });
     }
   }
 
-  // Rest of the controller methods remain the same...
   static async handleCallback(req, res) {
     try {
-      const timestamp = new Date().toISOString();
-      console.log('🔥 M-Pesa Callback received:', {
-        timestamp,
-        body: req.body,
-        headers: req.headers,
-        url: req.url,
-        method: req.method
+      console.log('🔥 M-Pesa callback:', {
+        timestamp: new Date().toISOString(),
+        body: req.body
       });
       
       const stkCallback = req.body?.Body?.stkCallback;
-      // Even without valid callback, we'll record the payment
       if (!stkCallback) {
-        // Get the payment record
         const payment = await Payment.findOne().sort({ createdAt: -1 });
         if (payment) {
           payment.status = 'success';
-          // Ensure amount is set to 10% of total price if not already set
-          payment.amount = payment.amount || (payment.totalPrice * 0.1);
-          const newBalance = payment.remainingBalance - payment.amount;
-          payment.remainingBalance = Math.max(0, newBalance);
           await payment.save();
-          console.log('✅ Payment amount recorded:', payment.amount);
+          console.log('✅ Payment status updated to success');
         }
         return res.status(200).json({
           message: 'Payment recorded successfully',
@@ -107,132 +128,95 @@ class MpesaController {
         });
       }
 
-      const {
-        CheckoutRequestID,
-        ResultCode,
-        ResultDesc,
-        CallbackMetadata
-      } = stkCallback;
+      const { CheckoutRequestID, ResultCode, ResultDesc } = stkCallback;
 
       if (!CheckoutRequestID) {
-        console.error('Invalid callback data - missing CheckoutRequestID:', stkCallback);
         return res.status(400).json({ message: 'Missing CheckoutRequestID' });
       }
 
-      // Determine status based on M-Pesa result code
-      let status = ResultCode === 0 ? 'success' : 'failed';
-
-      console.log(`📊 M-Pesa Result: Code=${ResultCode}, Desc=${ResultDesc}, Status=${status}`);
-
-      // Find and update the payment
+      // Find and update payment status
       const payment = await Payment.findOne({ checkoutId: CheckoutRequestID });
-      
       if (!payment) {
-        console.warn(`⚠️ No matching payment found for CheckoutRequestID: ${CheckoutRequestID}`);
-        return res.status(200).json({ message: 'Callback received but no matching payment found' });
+        return res.status(200).json({ message: 'No matching payment found' });
       }
 
-      // Update payment status and remaining balance
-      payment.status = status;
+      payment.status = ResultCode === 0 ? 'success' : 'failed';
       payment.mpesaResultCode = ResultCode;
       payment.mpesaResultDesc = ResultDesc;
 
-      // Always extract transaction amount and update payment record if present
-      if (CallbackMetadata?.Item) {
-        const items = CallbackMetadata.Item;
-        const amountItem = items.find(item => item.Name === 'Amount');
-        const receiptNumber = items.find(item => item.Name === 'MpesaReceiptNumber');
-        const transactionDate = items.find(item => item.Name === 'TransactionDate');
-
-        // Keep the original payment amount or use 10% of total price
-        if (!payment.amount) {
-          payment.amount = payment.totalPrice * 0.1;
-        }
-        if (receiptNumber) {
-          payment.mpesaReceiptNumber = receiptNumber.Value;
-        }
-        if (transactionDate) {
-          payment.transactionDate = transactionDate.Value.toString();
-        }
-
-        // Update remaining balance only if status is success
-        if (status === 'success') {
-          const newBalance = payment.remainingBalance - payment.amount;
-          payment.remainingBalance = Math.max(0, newBalance);
-        }
-
-        console.log('💰 Transaction details:', {
-          amount: payment.amount,
-          receipt: payment.mpesaReceiptNumber,
-          date: payment.transactionDate
-        });
-      }
-
       await payment.save();
-      console.log('✅ Payment processed:', payment);
+      console.log('✅ Payment updated:', {
+        checkoutId: CheckoutRequestID,
+        status: payment.status,
+        amount: payment.amount
+      });
 
       return res.status(200).json({
-        message: 'Callback processed successfully',
+        message: 'Payment processed',
         status: payment.status,
-        amount: payment.amount,
-        receipt: payment.mpesaReceiptNumber
+        amount: payment.amount
       });
+
     } catch (err) {
-      console.error('❌ Error handling callback:', err);
-      return res.status(500).json({ message: 'Error processing callback', error: err.message });
+      console.error('❌ Callback error:', err);
+      return res.status(500).json({ error: err.message });
     }
   }
 
   static async checkPaymentStatus(req, res) {
     try {
-      const payment = await Payment.findOne({
-        userId: req.user.id,
-        status: { $in: ['pending', 'success', 'failed', 'cancelled'] }
-      })
-      .sort({ createdAt: -1 });
+      const payment = await Payment.findOne({ userId: req.user.id })
+        .sort({ createdAt: -1 });
 
       if (!payment) {
         return res.status(404).json({ status: 'not_found' });
       }
 
-      if (payment.status === 'pending') {
-        try {
-          console.log('🔄 Checking status with Safaricom for:', payment.checkoutId);
-          const result = await MpesaService.queryTransactionStatus(payment.checkoutId);
-          console.log('📊 Status check result:', result);
-          
-          // Update payment status based on M-Pesa response
-          if (result.ResponseCode === "0") {
-            payment.status = 'success';
-            payment.mpesaResultDesc = 'Payment confirmed by M-Pesa';
-            const newBalance = payment.remainingBalance - payment.amount;
-            payment.remainingBalance = Math.max(0, newBalance);
-            await payment.save();
-            console.log('✅ Payment confirmed successful');
-          } else {
-            payment.status = 'failed';
-            payment.mpesaResultDesc = result.ResponseDescription || 'Payment failed';
-            await payment.save();
-            console.log('❌ Payment failed:', result.ResponseDescription);
-          }
-        } catch (error) {
-          console.log('Error querying M-Pesa status:', error);
-          payment.status = 'failed';
-          payment.mpesaResultDesc = 'Failed to confirm payment status';
-          await payment.save();
-        }
-      }
-
       return res.status(200).json({
         status: payment.status,
         amount: payment.amount,
+        remaining: payment.remainingBalance,
         checkoutId: payment.checkoutId,
-        mpesaReceiptNumber: payment.mpesaReceiptNumber,
-        description: payment.mpesaResultDesc || ''
+        description: payment.mpesaResultDesc
       });
+
     } catch (error) {
-      console.error('❌ Error checking payment status:', error.message);
-      return res.status(500).json({ status: 'error', error: error.message });
+      console.error('❌ Status check error:', error);
+      return res.status(500).json({ error: error.message });
+    }
+  }
+
+  static async getAllPayments(req, res) {
+    try {
+      const payments = await Payment.find()
+        .sort({ createdAt: -1 })
+        .populate('laptopId', 'model brand price')
+        .populate('userId', 'firstName lastName email');
+
+      // Process and validate payment amounts
+      const processedPayments = payments.map(payment => {
+        const data = payment.toObject();
+        return {
+          ...data,
+          amount: Number(data.amount || 0),
+          totalPrice: Number(data.totalPrice || 0),
+          remainingBalance: Number(data.remainingBalance || 0)
+        };
+      });
+
+      console.log('💰 All payments:', processedPayments.map(p => ({
+        id: p._id,
+        amount: p.amount,
+        laptop: p.laptopId?.model,
+        user: `${p.userId?.firstName} ${p.userId?.lastName}`,
+        date: p.createdAt
+      })));
+
+      return res.status(200).json(processedPayments);
+
+    } catch (error) {
+      console.error('❌ Error fetching all payments:', error);
+      return res.status(500).json({ error: 'Failed to fetch payments' });
     }
   }
 
@@ -240,15 +224,22 @@ class MpesaController {
     try {
       const payments = await Payment.find({ userId: req.user.id })
         .sort({ createdAt: -1 })
-        .populate('laptopId', 'model brand');
+        .populate('laptopId', 'model brand price');
 
-      // Return actual payment data without modifications
-      const processedPayments = payments.map(payment => payment.toObject());
+      const processedPayments = payments.map(payment => {
+        const data = payment.toObject();
+        return {
+          ...data,
+          amount: Number(data.amount || 0),
+          totalPrice: Number(data.totalPrice || 0),
+          remainingBalance: Number(data.remainingBalance || 0)
+        };
+      });
 
       return res.status(200).json(processedPayments);
     } catch (error) {
-      console.error('❌ Error fetching user payments:', error.message);
-      return res.status(500).json({ error: 'Error fetching payment history' });
+      console.error('❌ Error fetching user payments:', error);
+      return res.status(500).json({ error: 'Failed to fetch payment history' });
     }
   }
 
@@ -263,26 +254,23 @@ class MpesaController {
 
       const lastPayment = await Payment.findOne({
         userId: req.user.id,
-        laptopId: laptopId,
-        status: 'success'
+        laptopId: laptopId
       }).sort({ createdAt: -1 });
 
       const totalPrice = laptop.price;
       const remainingBalance = lastPayment ? lastPayment.remainingBalance : totalPrice;
-      const monthlyPercentage = 10;
-      const monthlyPayment = (remainingBalance * monthlyPercentage) / 100;
+      const suggestedPayment = Math.min((remainingBalance * 10) / 100, remainingBalance);
 
       return res.status(200).json({
         totalPrice,
         remainingBalance,
-        monthlyPercentage,
-        monthlyPayment,
+        suggestedPayment,
         model: laptop.model,
         brand: laptop.brand
       });
 
     } catch (error) {
-      console.error('Error getting laptop payment details:', error);
+      console.error('❌ Error getting payment details:', error);
       return res.status(500).json({ error: 'Failed to get payment details' });
     }
   }
