@@ -59,7 +59,7 @@ class MpesaService {
             Authorization: `Bearer ${accessToken}`,
             'Content-Type': 'application/json'
           },
-          timeout: 10000 // 10 second timeout
+          timeout: 30000 // 30 second timeout
         }
       );
 
@@ -99,7 +99,7 @@ class MpesaService {
             Authorization: `Bearer ${accessToken}`,
             'Content-Type': 'application/json'
           },
-          timeout: 5000 // 5 second timeout
+          timeout: 15000 // 15 second timeout
         }
       );
 

@@ -2,11 +2,14 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/authcontext';
 import { Apidomain } from '../utils/ApiDomain';
+import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import './userStats.css';
 import jsPDF from "jspdf";
 
 export default function UserStats() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [applications, setApplications] = useState([]);
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -280,6 +283,27 @@ const handlePrintReceipt = async (payment) => {
                       Remaining: <span style={{ fontWeight: 700 }}>KES {remaining.toLocaleString()}</span>
                     </div>
                   </div>
+                  <button
+                    onClick={() => navigate('/mpesa-payment')}
+                    style={{
+                      position: "absolute",
+                      left: "18px",
+                      bottom: "18px",
+                      background: "#0284c7",
+                      borderRadius: "8px",
+                      padding: "0.35rem 0.7rem",
+                      fontSize: "0.93rem",
+                      color: "#fff",
+                      boxShadow: "0 2px 8px rgba(2,132,199,0.10)",
+                      border: "none",
+                      cursor: "pointer",
+                      fontWeight: 500,
+                      letterSpacing: "0.01em",
+                      transition: "background-color 0.2s"
+                    }}
+                  >
+                    Pay Again
+                  </button>
                 </div>
               );
             })}
