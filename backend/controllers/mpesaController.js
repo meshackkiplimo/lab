@@ -63,6 +63,58 @@ class MpesaController {
         'Laptop Payment'
       );
 
+      // Start periodic status checks
+      let attempts = 0;
+      const maxAttempts = 6; // Check for 3 minutes (30 seconds * 6)
+      const checkStatus = async () => {
+        try {
+          if (attempts >= maxAttempts) {
+            const payment = await Payment.findOne({ checkoutId: response.CheckoutRequestID });
+            if (payment && payment.status === 'pending') {
+              payment.status = 'failed';
+              payment.mpesaResultDesc = 'Transaction timed out';
+              await payment.save();
+            }
+            return;
+          }
+
+          const statusResponse = await MpesaService.queryTransactionStatus(response.CheckoutRequestID);
+          
+          const payment = await Payment.findOne({ checkoutId: response.CheckoutRequestID });
+          if (!payment) return;
+
+          // Check for success conditions
+          const isSuccess =
+            statusResponse.ResultCode === 0 ||
+            statusResponse.ResultDesc === "The service request is processed successfully";
+
+          if (isSuccess) {
+            payment.status = 'success';
+            payment.mpesaResultDesc = "Payment processed successfully";
+            await payment.save();
+            console.log('✅ Payment status updated to success:', {
+              checkoutId: response.CheckoutRequestID,
+              amount: payment.amount,
+              mpesaResultDesc: payment.mpesaResultDesc // Include detailed status description
+            });
+            return;
+          } else if (statusResponse.ResultCode !== undefined) {
+            // Only mark as failed if we get a clear failure response
+            payment.status = 'failed';
+            payment.mpesaResultDesc = statusResponse.ResultDesc || 'Payment failed';
+            await payment.save();
+            return;
+          }
+
+          attempts++;
+          setTimeout(checkStatus, 30000); // Check every 30 seconds
+        } catch (error) {
+          console.error('Status check error:', error);
+        }
+      };
+
+      setTimeout(checkStatus, 30000); // Start first check after 30 seconds
+
       console.log('✅ STK push successful:', response);
 
       // Create payment record
@@ -75,7 +127,8 @@ class MpesaController {
         method: 'Mpesa',
         status: 'pending',
         checkoutId: response.CheckoutRequestID,
-        mpesaResultDesc: `Payment of KES ${paymentAmount}, remaining balance KES ${newRemaining}`
+        mpesaResultDesc: `Payment of KES ${paymentAmount}, remaining balance KES ${newRemaining}`,
+        laptopId: laptopId // Ensure laptop ID is recorded
       });
 
       console.log('💾 Saving payment record:', {
@@ -111,24 +164,15 @@ class MpesaController {
     try {
       console.log('🔥 M-Pesa callback:', {
         timestamp: new Date().toISOString(),
-        body: req.body
+        body: JSON.stringify(req.body, null, 2) // Ensure logs are formatted and visible
       });
       
       const stkCallback = req.body?.Body?.stkCallback;
       if (!stkCallback) {
-        const payment = await Payment.findOne().sort({ createdAt: -1 });
-        if (payment) {
-          payment.status = 'success';
-          await payment.save();
-          console.log('✅ Payment status updated to success');
-        }
-        return res.status(200).json({
-          message: 'Payment recorded successfully',
-          amount: payment?.amount || 0
-        });
+        return res.status(400).json({ message: 'Invalid callback data' });
       }
 
-      const { CheckoutRequestID, ResultCode, ResultDesc } = stkCallback;
+      const { CheckoutRequestID, ResultCode, ResultDesc, CallbackMetadata } = stkCallback;
 
       if (!CheckoutRequestID) {
         return res.status(400).json({ message: 'Missing CheckoutRequestID' });
@@ -140,15 +184,69 @@ class MpesaController {
         return res.status(200).json({ message: 'No matching payment found' });
       }
 
-      payment.status = ResultCode === 0 ? 'success' : 'failed';
+      // Correctly handle success cases
+      const isSuccess =
+        ResultCode === 0 ||
+        ResultDesc === "The service request is processed successfully" ||
+        ResultDesc?.toLowerCase().includes('success');
+
+      payment.status = isSuccess ? 'success' : 'failed';
       payment.mpesaResultCode = ResultCode;
-      payment.mpesaResultDesc = ResultDesc;
+      payment.mpesaResultDesc = isSuccess ? "Payment processed successfully" : ResultDesc;
+
+      // Extract transaction details from callback metadata
+      if (CallbackMetadata && CallbackMetadata.Item) {
+        CallbackMetadata.Item.forEach(item => {
+          switch(item.Name) {
+            case 'MpesaReceiptNumber':
+              payment.mpesaReceiptNumber = item.Value;
+              break;
+            case 'TransactionDate':
+              payment.transactionDate = item.Value;
+              break;
+            case 'Amount':
+              payment.confirmedAmount = item.Value;
+              break;
+          }
+        });
+      }
 
       await payment.save();
       console.log('✅ Payment updated:', {
         checkoutId: CheckoutRequestID,
         status: payment.status,
         amount: payment.amount
+      });
+
+      return res.status(200).json({
+        message: 'Payment processed',
+        status: payment.status,
+        amount: payment.amount
+      });
+
+      // Extract transaction details from callback metadata
+      if (CallbackMetadata && CallbackMetadata.Item) {
+        CallbackMetadata.Item.forEach(item => {
+          switch(item.Name) {
+            case 'MpesaReceiptNumber':
+              payment.mpesaReceiptNumber = item.Value;
+              break;
+            case 'TransactionDate':
+              payment.transactionDate = item.Value;
+              break;
+            case 'Amount':
+              payment.confirmedAmount = item.Value;
+              break;
+          }
+        });
+      }
+
+      await payment.save();
+      console.log('✅ Payment updated:', {
+        checkoutId: CheckoutRequestID,
+        status: payment.status,
+        amount: payment.amount,
+        mpesaResultDesc: payment.mpesaResultDesc // Include detailed status description
       });
 
       return res.status(200).json({
@@ -172,13 +270,22 @@ class MpesaController {
         return res.status(404).json({ status: 'not_found' });
       }
 
-      return res.status(200).json({
+      const response = {
         status: payment.status,
         amount: payment.amount,
         remaining: payment.remainingBalance,
         checkoutId: payment.checkoutId,
-        description: payment.mpesaResultDesc
-      });
+        description: payment.mpesaResultDesc || 'Payment processed successfully'
+      };
+
+      // Add additional details for successful payments
+      if (payment.status === 'success') {
+        response.receiptNumber = payment.mpesaReceiptNumber;
+        response.transactionDate = payment.transactionDate;
+        response.confirmedAmount = payment.confirmedAmount;
+      }
+
+      return res.status(200).json(response);
 
     } catch (error) {
       console.error('❌ Status check error:', error);

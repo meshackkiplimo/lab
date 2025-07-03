@@ -91,23 +91,61 @@ class MpesaService {
         CheckoutRequestID: checkoutRequestId
       };
 
-      const response = await axios.post(
-        'https://sandbox.safaricom.co.ke/mpesa/stkpushquery/v1/query',
-        payload,
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          },
-          timeout: 15000 // 15 second timeout
-        }
-      );
+      try {
+        const response = await axios.post(
+          'https://sandbox.safaricom.co.ke/mpesa/stkpushquery/v1/query',
+          payload,
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              'Content-Type': 'application/json'
+            },
+            timeout: 15000 // 15 second timeout
+          }
+        );
 
-      console.log(`✅ [${timestamp}] Status query response:`, response.data);
-      return response.data;
+        console.log(`✅ [${timestamp}] Status query response:`, response.data);
+
+        // Handle specific error codes from M-Pesa
+        if (response.data.ResultCode === "1037") {
+          return {
+            ResultCode: 1,
+            ResultDesc: "Timeout waiting for user input"
+          };
+        } else if (response.data.ResultCode === "1032") {
+          return {
+            ResultCode: 1,
+            ResultDesc: "Transaction cancelled by user"
+          };
+        }
+
+        return response.data;
+
+      } catch (axiosError) {
+        // Handle network timeouts separately
+        if (axiosError.code === 'ECONNABORTED') {
+          return {
+            ResultCode: 1,
+            ResultDesc: "Network timeout while checking status"
+          };
+        }
+
+        // Handle other HTTP errors
+        if (axiosError.response?.status === 404) {
+          return {
+            ResultCode: 1,
+            ResultDesc: "Transaction not found"
+          };
+        }
+
+        throw axiosError;
+      }
     } catch (error) {
       console.error(`❌ [${new Date().toISOString()}] Status query error:`, error.response?.data || error.message);
-      throw error;
+      return {
+        ResultCode: 1,
+        ResultDesc: error.message || "Failed to check transaction status"
+      };
     }
   }
 }

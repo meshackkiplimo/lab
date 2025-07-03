@@ -42,6 +42,11 @@ const paymentSchema = new mongoose.Schema({
   transactionDate: String,
   mpesaResultCode: Number,
   mpesaResultDesc: String,
+  laptopId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Laptop',
+    required: true
+  }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Payment', paymentSchema);
