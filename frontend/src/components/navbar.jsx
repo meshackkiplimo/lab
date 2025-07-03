@@ -20,7 +20,11 @@ export default function Navbar() {
       </div>
       <div className="nav-links">
         <Link to="/dashboard" className="nav-link">Dashboard</Link>
-        <Link to="/available-laptops" className="nav-link">Laptops</Link>
+        {localStorage.getItem('role') === 'admin' ? (
+          <Link to="/admin/available-laptops" className="nav-link">Manage Laptops</Link>
+        ) : (
+          <Link to="/available-laptops" className="nav-link">Available Laptops</Link>
+        )}
      
         <Link to="/user-stats" className="nav-link">Stats</Link>
         <Link to="/clearance" className="nav-link">Clearance</Link>

@@ -62,6 +62,25 @@ export default function AvailableLaptops() {
     navigate(`/applications/${laptopId}`);
   };
 
+  const deleteLaptop = async (laptopId) => {
+    if (!window.confirm('Are you sure you want to delete this laptop?')) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      await fetch(`http://localhost:5000/api/laptops/${laptopId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      setLaptops(laptops.filter(laptop => laptop._id !== laptopId));
+    } catch (error) {
+      console.error('Error deleting laptop:', error);
+      alert('Failed to delete laptop. Please try again.');
+    }
+  };
+
   if (authorized === false) return null;
 
   return (
@@ -200,6 +219,28 @@ export default function AvailableLaptops() {
                   >
                     ✅ Apply
                   </button>
+                  {localStorage.getItem('role') === 'admin' && (
+                    <button
+                      onClick={() => deleteLaptop(laptop._id)}
+                      style={{
+                        marginTop: 12,
+                        background: '#dc2626',
+                        color: '#ffffff',
+                        padding: '0.55rem',
+                        borderRadius: 8,
+                        border: 'none',
+                        fontWeight: 600,
+                        fontSize: '0.95rem',
+                        cursor: 'pointer',
+                        width: '100%',
+                        transition: 'background 0.2s ease',
+                      }}
+                      onMouseOver={e => e.currentTarget.style.background = '#b91c1c'}
+                      onMouseOut={e => e.currentTarget.style.background = '#dc2626'}
+                    >
+                      🗑️ Delete Laptop
+                    </button>
+                  )}
                 </div>
               </div>
             ))}

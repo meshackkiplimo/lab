@@ -16,6 +16,8 @@ import Clearance from './pages/clearance';
 import ManageInventory from './pages/Manage-Inventory';
 import UserStats from './pages/userStats.jsx';
 import ForgotPassword from './pages/forgotPassword.jsx';
+import AdminAvailableLaptops from './pages/admin-available.jsx';
+import AdminLaptopManager from './pages/admin-available.jsx';
 
 
 
@@ -48,6 +50,16 @@ export default function App() {
           <ProtectedRoute allowedRoles={['student']}>
             <Layout>
               <AvailableLaptops />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/available-laptops"
+        element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <Layout>
+              <AdminLaptopManager />
             </Layout>
           </ProtectedRoute>
         }
