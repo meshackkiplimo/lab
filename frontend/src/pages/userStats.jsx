@@ -284,7 +284,7 @@ const handlePrintReceipt = async (payment) => {
                     </div>
                   </div>
                   <button
-                    onClick={() => navigate('/mpesa-payment')}
+                    onClick={() => navigate(`/mpesa-payment?laptopId=${app.laptop?._id || app.laptop}&price=${remaining}`)}
                     style={{
                       position: "absolute",
                       left: "18px",

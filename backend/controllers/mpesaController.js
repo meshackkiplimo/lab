@@ -26,6 +26,15 @@ class MpesaController {
 
       const totalPrice = laptop.price;
       const remainingBalance = lastPayment ? lastPayment.remainingBalance : totalPrice;
+      
+      // Only validate that payment doesn't exceed remaining balance
+      if (amount > remainingBalance) {
+        return res.status(400).json({
+          success: false,
+          error: 'Payment amount cannot exceed remaining balance'
+        });
+      }
+      
       const monthlyPayment = amount;
 
       console.log('💰 Initiating payment with:', {
@@ -110,8 +119,8 @@ class MpesaController {
         return res.status(400).json({ message: 'Missing CheckoutRequestID' });
       }
 
-      // Force all transactions to success status
-      let status = 'success';
+      // Determine status based on M-Pesa result code
+      let status = ResultCode === 0 ? 'success' : 'failed';
 
       console.log(`📊 M-Pesa Result: Code=${ResultCode}, Desc=${ResultDesc}, Status=${status}`);
 
@@ -191,18 +200,27 @@ class MpesaController {
           console.log('🔄 Checking status with Safaricom for:', payment.checkoutId);
           const result = await MpesaService.queryTransactionStatus(payment.checkoutId);
           console.log('📊 Status check result:', result);
+          
+          // Update payment status based on M-Pesa response
+          if (result.ResponseCode === "0") {
+            payment.status = 'success';
+            payment.mpesaResultDesc = 'Payment confirmed by M-Pesa';
+            const newBalance = payment.remainingBalance - payment.amount;
+            payment.remainingBalance = Math.max(0, newBalance);
+            await payment.save();
+            console.log('✅ Payment confirmed successful');
+          } else {
+            payment.status = 'failed';
+            payment.mpesaResultDesc = result.ResponseDescription || 'Payment failed';
+            await payment.save();
+            console.log('❌ Payment failed:', result.ResponseDescription);
+          }
         } catch (error) {
           console.log('Error querying M-Pesa status:', error);
+          payment.status = 'failed';
+          payment.mpesaResultDesc = 'Failed to confirm payment status';
+          await payment.save();
         }
-
-        // Always mark payment as successful and record the amount
-        payment.status = 'success';
-        payment.mpesaResultDesc = 'Payment recorded as successful';
-        payment.amount = payment.amount || (payment.totalPrice * 0.1); // Use 10% of total price if amount not set
-        const newBalance = payment.remainingBalance - payment.amount;
-        payment.remainingBalance = Math.max(0, newBalance);
-        await payment.save();
-        console.log('✅ Payment marked as successful');
       }
 
       return res.status(200).json({
@@ -224,14 +242,8 @@ class MpesaController {
         .sort({ createdAt: -1 })
         .populate('laptopId', 'model brand');
 
-      // Ensure all payments have the correct amount
-      const processedPayments = payments.map(payment => {
-        return {
-          ...payment.toObject(),
-          amount: payment.amount || payment.totalPrice * 0.1, // If amount is not set, use 10% of total price
-          status: 'success' // Always show as success
-        };
-      });
+      // Return actual payment data without modifications
+      const processedPayments = payments.map(payment => payment.toObject());
 
       return res.status(200).json(processedPayments);
     } catch (error) {
