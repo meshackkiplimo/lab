@@ -14,8 +14,8 @@ export default function MpesaPayment() {
   const [paymentDetails, setPaymentDetails] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [timeoutId, setTimeoutId] = useState(null);
-  const [price, setPrice] = useState(0);
-  const [monthlyPayment, setMonthlyPayment] = useState(0);
+  const [totalPrice, setTotalPrice] = useState(0);
+  const [paymentAmount, setPaymentAmount] = useState(0);
   const [laptopId, setLaptopId] = useState('');
 
   useEffect(() => {
@@ -26,10 +26,10 @@ export default function MpesaPayment() {
       navigate('/available-laptops');
       return;
     }
-    setPrice(priceParam);
+    setTotalPrice(priceParam);
     setLaptopId(laptopIdParam);
-    // Default to 10% but allow any amount up to remaining balance
-    setMonthlyPayment(Math.min((priceParam * 10) / 100, priceParam));
+    // Default payment amount to 10% of total price
+    setPaymentAmount(Math.min((priceParam * 10) / 100, priceParam));
   }, [navigate]);
 
   useEffect(() => {
@@ -131,7 +131,7 @@ export default function MpesaPayment() {
         {
           phoneNumber,
           laptopId,
-          amount: monthlyPayment
+          amount: paymentAmount
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -142,7 +142,7 @@ export default function MpesaPayment() {
         checkPaymentStatus(token);
         setPaymentDetails({ 
           checkoutId: res.data.data.CheckoutRequestID,
-          amount: monthlyPayment
+          amount: paymentAmount
         });
       } else {
         setPaymentStatus('failed');
@@ -186,7 +186,7 @@ export default function MpesaPayment() {
       case 'waiting':
         return '⏳ Waiting for M-Pesa confirmation...';
       default:
-        return `Pay any amount up to KES ${price.toFixed(2)} (Suggested: KES ${monthlyPayment.toFixed(2)})`;
+        return `Pay any amount up to KES ${totalPrice.toFixed(2)} (Suggested: KES ${paymentAmount.toFixed(2)})`;
     }
   };
 
@@ -242,11 +242,15 @@ export default function MpesaPayment() {
         <div className="mpesapayment-summary">
           <div className="mpesapayment-summary-row">
             <span className="label">Total Price:</span>
-            <span className="value">KES {price.toFixed(2)}</span>
+            <span className="value">KES {totalPrice.toFixed(2)}</span>
           </div>
           <div className="mpesapayment-summary-row">
-            <span className="label">Monthly Payment (10%):</span>
-            <span className="value green">KES {monthlyPayment.toFixed(2)}</span>
+            <span className="label">Payment Amount:</span>
+            <span className="value green">KES {paymentAmount.toFixed(2)}</span>
+          </div>
+          <div className="mpesapayment-summary-row">
+            <span className="label">Remaining After Payment:</span>
+            <span className="value red">KES {Math.max(0, totalPrice - paymentAmount).toFixed(2)}</span>
           </div>
         </div>
         {paymentDetails?.checkoutId && (
@@ -288,6 +292,9 @@ export default function MpesaPayment() {
             </button>
           )}
         </div>
+        <p style={{ textAlign: 'center', marginTop: '10px', fontSize: '0.9rem', color: '#666' }}>
+          Suggested payment is 10% (KES {(totalPrice * 0.1).toFixed(2)})
+        </p>
       </form>
     </div>
   );

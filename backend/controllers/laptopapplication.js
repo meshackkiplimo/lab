@@ -79,7 +79,7 @@ exports.getApplications = async (req, res) => {
 
     const applications = await LaptopApplication.find(query)
       .populate('student', 'firstName lastName email year')
-      .populate('laptop', 'model spec available');
+      .populate('laptop', 'model brand spec available price');
 
     return res.status(200).json({
       success: true,

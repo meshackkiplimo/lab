@@ -23,7 +23,10 @@ const paymentSchema = new mongoose.Schema({
     type: Number,
     default: 10
   },
-  amount: Number,
+  amount: {
+    type: Number,
+    required: true
+  },
   method: {
     type: String,
     enum: ['Mpesa'],
