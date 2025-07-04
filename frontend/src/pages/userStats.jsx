@@ -77,7 +77,7 @@ const getStatusColor = (status) => {
     case 'pending':
       return '#f59e0b';
     case 'rejected':
-    case 'failed':
+    case 'success':
       return '#ef4444';
     case 'success':
       return '#10b981';

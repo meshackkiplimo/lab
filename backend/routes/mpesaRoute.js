@@ -33,5 +33,7 @@ router.get('/user-payments', authMiddleware(), MpesaController.getUserPayments);
 
 // Get laptop payment details
 router.get('/laptop-payment-details/:laptopId', authMiddleware(), MpesaController.getLaptopPaymentDetails);
+// Admin route to delete a payment
+router.delete('/payments/:paymentId', authMiddleware('admin'), MpesaController.deletePayment);
 
 module.exports = router;

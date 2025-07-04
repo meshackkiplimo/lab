@@ -383,4 +383,25 @@ class MpesaController {
   }
 }
 
+// delete payment
+MpesaController.deletePayment = async (req, res) => {
+  try {
+    const { paymentId } = req.params;
+
+    const payment = await
+    Payment
+      .findByIdAndDelete(paymentId);
+    if (!payment) {
+      return res.status(404).json({ message: 'Payment not found' });
+    }
+    return res.status(200).json({ message: 'Payment deleted successfully' });
+  } catch (error) {
+    console.error('❌ Error deleting payment:', error);
+    return res.status(500).json({ error: 'Failed to delete payment' });
+  }
+}
+
+
+    
+
 module.exports = MpesaController;

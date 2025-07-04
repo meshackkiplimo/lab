@@ -18,6 +18,7 @@ import UserStats from './pages/userStats.jsx';
 import ForgotPassword from './pages/forgotPassword.jsx';
 import AdminAvailableLaptops from './pages/admin-available.jsx';
 import AdminLaptopManager from './pages/admin-available.jsx';
+import AdminPaymentsManager from './pages/managepayment.jsx';
 
 
 
@@ -123,6 +124,16 @@ export default function App() {
           <ProtectedRoute allowedRoles={['admin']}>
             <Layout>
               <ManageInventory />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+       <Route
+        path="/manage-payment"
+        element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <Layout>
+              <AdminPaymentsManager />
             </Layout>
           </ProtectedRoute>
         }

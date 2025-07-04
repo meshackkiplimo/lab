@@ -57,3 +57,5 @@ exports.deleteLaptop = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+// delete payment
