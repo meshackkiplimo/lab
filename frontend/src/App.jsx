@@ -20,6 +20,7 @@ import AdminAvailableLaptops from './pages/admin-available.jsx';
 import AdminLaptopManager from './pages/admin-available.jsx';
 import AdminPaymentsManager from './pages/managepayment.jsx';
 import Analytics from './pages/analytics.jsx';
+import UserManual from './pages/userManual.jsx';
 
 
 export default function App() {
@@ -159,9 +160,19 @@ export default function App() {
          </ProtectedRoute>
        }
      />
-      
 
-      {/* ❌ Catch-All */}
+     <Route
+       path="/user-manual"
+       element={
+         <ProtectedRoute allowedRoles={['student']}>
+           <Layout>
+             <UserManual />
+           </Layout>
+         </ProtectedRoute>
+       }
+     />
+
+     {/* ❌ Catch-All */}
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

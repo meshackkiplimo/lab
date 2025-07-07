@@ -31,6 +31,18 @@ export default function Navbar() {
             <Link to="/available-laptops" className="nav-link">Available Laptops</Link>
             <Link to="/user-stats" className="nav-link">Stats</Link>
             <Link to="/clearance" className="nav-link">Clearance</Link>
+            <Link to="/user-manual" className="nav-link" style={{
+              background: '#e0f2fe',
+              color: '#0284c7',
+              borderRadius: '6px',
+              padding: '6px 12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}>
+              <span role="img" aria-label="book">📖</span>
+              User Guide
+            </Link>
           </>
         )}
         <button onClick={handleLogout} className="logout-btn">Logout</button>
