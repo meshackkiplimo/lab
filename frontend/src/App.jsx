@@ -19,7 +19,7 @@ import ForgotPassword from './pages/forgotPassword.jsx';
 import AdminAvailableLaptops from './pages/admin-available.jsx';
 import AdminLaptopManager from './pages/admin-available.jsx';
 import AdminPaymentsManager from './pages/managepayment.jsx';
-
+import Analytics from './pages/analytics.jsx';
 
 
 export default function App() {
@@ -139,16 +139,27 @@ export default function App() {
         }
       />
       <Route
-        path="/clearance"
-        element={
-          <ProtectedRoute allowedRoles={['student']}>
-            <Layout>
-              <Clearance />
-            </Layout>
-          </ProtectedRoute>
-        }
-      />
-       
+       path="/analytics"
+       element={
+         <ProtectedRoute allowedRoles={['admin']}>
+           <Layout>
+             <Analytics />
+           </Layout>
+         </ProtectedRoute>
+       }
+     />
+
+      <Route
+       path="/clearance"
+       element={
+         <ProtectedRoute allowedRoles={['student']}>
+           <Layout>
+             <Clearance />
+           </Layout>
+         </ProtectedRoute>
+       }
+     />
+      
 
       {/* ❌ Catch-All */}
       <Route path="*" element={<NotFound />} />

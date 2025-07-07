@@ -122,6 +122,7 @@ export default function DashboardLayout() {
                <Link to="/manage-payment" style={styles.navLink}>Manage payment</Link>
               <Link to="/Manage-Inventory" style={styles.navLink}>📦 Manage Inventory</Link>
                   <Link to="/admin/available-laptops" style={styles.navLink}>📦 Manage Laptob</Link>
+                     <Link to="/analytics" style={styles.navLink}>Analytics</Link>
             </>
           )}
          {  isUser &&(
