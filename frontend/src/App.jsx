@@ -21,6 +21,7 @@ import AdminLaptopManager from './pages/admin-available.jsx';
 import AdminPaymentsManager from './pages/managepayment.jsx';
 import Analytics from './pages/analytics.jsx';
 import UserManual from './pages/userManual.jsx';
+import AdditionalPayment from './pages/additionalPayment.jsx';
 
 
 export default function App() {
@@ -167,6 +168,17 @@ export default function App() {
          <ProtectedRoute allowedRoles={['student']}>
            <Layout>
              <UserManual />
+           </Layout>
+         </ProtectedRoute>
+       }
+     />
+
+     <Route
+       path="/additional-payment"
+       element={
+         <ProtectedRoute allowedRoles={['student']}>
+           <Layout>
+             <AdditionalPayment />
            </Layout>
          </ProtectedRoute>
        }

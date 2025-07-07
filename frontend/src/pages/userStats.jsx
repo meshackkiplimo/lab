@@ -329,7 +329,7 @@ const handlePrintReceipt = async (payment) => {
                     </div>
                   </div>
                   <button
-                    onClick={() => navigate(`/mpesa-payment?laptopId=${app.laptop?._id || app.laptop}&price=${remaining}`)}
+                    onClick={() => navigate(`/additional-payment?laptopId=${app.laptop?._id || app.laptop}`)}
                     style={{
                       position: "absolute",
                       left: "18px",
@@ -347,7 +347,7 @@ const handlePrintReceipt = async (payment) => {
                       transition: "background-color 0.2s"
                     }}
                   >
-                    Pay Again
+                    Make Payment
                   </button>
                 </div>
               );

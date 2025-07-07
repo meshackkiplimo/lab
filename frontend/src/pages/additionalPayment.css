@@ -1,0 +1,122 @@
+.payment-container {
+  min-height: 100vh;
+  background: linear-gradient(to bottom right, #f0f9ff, #e0f2fe);
+  padding: 2rem 1rem;
+}
+
+.payment-card {
+  max-width: 500px;
+  margin: 0 auto;
+  background: white;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  padding: 2rem;
+}
+
+.payment-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.payment-header h2 {
+  color: #1e40af;
+  font-size: 1.875rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.payment-header p {
+  color: #6b7280;
+  font-size: 0.975rem;
+}
+
+.laptop-details {
+  background: #f8fafc;
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  border: 1px solid #e2e8f0;
+}
+
+.laptop-details h3 {
+  color: #1e40af;
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.laptop-info {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+.info-item {
+  padding: 0.5rem;
+}
+
+.info-item label {
+  display: block;
+  color: #64748b;
+  font-size: 0.875rem;
+  margin-bottom: 0.25rem;
+}
+
+.info-item span {
+  color: #0f172a;
+  font-weight: 500;
+}
+
+.payment-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-group label {
+  color: #374151;
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+
+.form-group input {
+  padding: 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  transition: all 0.2s;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2);
+}
+
+.pay-button {
+  background: #2563eb;
+  color: white;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  font-size: 1rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 1rem;
+}
+
+.pay-button:hover {
+  background: #1d4ed8;
+}
+
+.pay-button:disabled {
+  background: #93c5fd;
+  cursor: not-allowed;
+}
