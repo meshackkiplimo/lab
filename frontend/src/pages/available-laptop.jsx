@@ -212,24 +212,34 @@ export default function AvailableLaptops() {
                   </p>
 
                   <button
-                    onClick={() => handleApply(laptop._id)}
-                    style={{
-                      marginTop: 12,
-                      background: '#10b981',
-                      color: '#ffffff',
-                      padding: '0.55rem',
-                      borderRadius: 8,
-                      border: 'none',
-                      fontWeight: 600,
-                      fontSize: '0.95rem',
-                      cursor: 'pointer',
-                      width: '100%',
-                      transition: 'background 0.2s ease',
-                    }}
-                    onMouseOver={e => e.currentTarget.style.background = '#059669'}
-                    onMouseOut={e => e.currentTarget.style.background = '#10b981'}
+                   onClick={() => handleApply(laptop._id)}
+                   disabled={laptop.status === 'Out of Stock'}
+                   style={{
+                     marginTop: 12,
+                     background: laptop.status === 'Out of Stock' ? '#9ca3af' : '#10b981',
+                     color: '#ffffff',
+                     padding: '0.55rem',
+                     borderRadius: 8,
+                     border: 'none',
+                     fontWeight: 600,
+                     fontSize: '0.95rem',
+                     cursor: laptop.status === 'Out of Stock' ? 'not-allowed' : 'pointer',
+                     width: '100%',
+                     transition: 'background 0.2s ease',
+                     opacity: laptop.status === 'Out of Stock' ? 0.7 : 1,
+                   }}
+                   onMouseOver={e => {
+                     if (laptop.status !== 'Out of Stock') {
+                       e.currentTarget.style.background = '#059669'
+                     }
+                   }}
+                   onMouseOut={e => {
+                     if (laptop.status !== 'Out of Stock') {
+                       e.currentTarget.style.background = '#10b981'
+                     }
+                   }}
                   >
-                    ✅ Apply
+                   {laptop.status === 'Out of Stock' ? '❌ Out of Stock' : '✅ Apply'}
                   </button>
                   {localStorage.getItem('role') === 'admin' && (
                     <button

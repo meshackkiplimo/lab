@@ -60,7 +60,7 @@ exports.applyLaptop = async (req, res) => {
 
     try {
       // Create new laptop application
-      const application = await LaptopApplication.create([{
+      const [newApplication] = await LaptopApplication.create([{
         student: req.user.id,
         laptop: laptopId
       }], { session });
@@ -74,7 +74,13 @@ exports.applyLaptop = async (req, res) => {
 
       // Commit the transaction
       await session.commitTransaction();
-      console.log('✅ Application created and laptop status updated:', application[0]);
+      console.log('✅ Application created and laptop status updated:', newApplication);
+
+      return res.status(201).json({
+        success: true,
+        message: 'Application submitted successfully',
+        application: newApplication
+      });
     } catch (error) {
       // If an error occurred, abort the transaction
       await session.abortTransaction();
@@ -83,12 +89,6 @@ exports.applyLaptop = async (req, res) => {
       // End the session
       session.endSession();
     }
-    return res.status(201).json({
-      success: true,
-      message: 'Application submitted successfully',
-      application
-    });
-
   } catch (err) {
     console.error('❌ Error in applyLaptop:', err);
     res.status(500).json({ success: false, error: err.message });
