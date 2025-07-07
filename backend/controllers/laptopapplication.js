@@ -1,5 +1,6 @@
 // controllers/laptopapplication.js
 
+const mongoose = require('mongoose');
 const LaptopApplication = require('../models/laptopapplication');
 const Laptop = require('../models/laptop');
 
@@ -36,8 +37,8 @@ exports.applyLaptop = async (req, res) => {
     if (!laptop) {
       return res.status(404).json({ success: false, error: 'Laptop not found' });
     }
-    if (!laptop.available) {
-      return res.status(400).json({ success: false, error: 'Laptop not available' });
+    if (laptop.status === 'Out of Stock') {
+      return res.status(400).json({ success: false, error: 'Laptop is out of stock' });
     }
 
     // Check for existing pending application for the same laptop
@@ -53,13 +54,35 @@ exports.applyLaptop = async (req, res) => {
       });
     }
 
-    // Create new laptop application
-    const application = await LaptopApplication.create({
-      student: req.user.id,
-      laptop: laptopId
-    });
+    // Start a transaction
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-    console.log('✅ Application created:', application);
+    try {
+      // Create new laptop application
+      const application = await LaptopApplication.create([{
+        student: req.user.id,
+        laptop: laptopId
+      }], { session });
+
+      // Update laptop status to Out of Stock
+      await Laptop.findByIdAndUpdate(
+        laptopId,
+        { status: 'Out of Stock' },
+        { session }
+      );
+
+      // Commit the transaction
+      await session.commitTransaction();
+      console.log('✅ Application created and laptop status updated:', application[0]);
+    } catch (error) {
+      // If an error occurred, abort the transaction
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      // End the session
+      session.endSession();
+    }
     return res.status(201).json({
       success: true,
       message: 'Application submitted successfully',
@@ -105,20 +128,43 @@ exports.updateApplicationStatus = async (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid status value' });
     }
 
-    // Find and update the application
-    const updated = await LaptopApplication.findByIdAndUpdate(
-      id,
-      { status },
-      { new: true }
-    )
-      .populate('student', 'firstName lastName email year')
-      .populate('laptop', 'model brand spec');
+    // Start a transaction
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-    if (!updated) {
-      return res.status(404).json({ success: false, error: 'Application not found' });
+    try {
+      // Find and update the application
+      const updated = await LaptopApplication.findByIdAndUpdate(
+        id,
+        { status },
+        { new: true, session }
+      )
+        .populate('student', 'firstName lastName email year')
+        .populate('laptop', 'model brand spec');
+
+      if (!updated) {
+        await session.abortTransaction();
+        return res.status(404).json({ success: false, error: 'Application not found' });
+      }
+
+      // If application is rejected, set laptop status back to Available
+      if (status === 'Rejected') {
+        await Laptop.findByIdAndUpdate(
+          updated.laptop._id,
+          { status: 'Available' },
+          { session }
+        );
+      }
+
+      // Commit the transaction
+      await session.commitTransaction();
+      console.log(`✅ Application ID: ${id} updated to status: ${status}`);
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
     }
-
-    console.log(`✅ Application ID: ${id} updated to status: ${status}`);
 
     return res.status(200).json({
       success: true,

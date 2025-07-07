@@ -177,9 +177,21 @@ export default function AvailableLaptops() {
                   }}>
                     {laptop.brand} {laptop.model}
                   </h2>
-                  <p style={{ color: '#475569', fontSize: '0.85rem' }}>
-                    🖥️ {laptop.size} | 💼 {laptop.subscriptionType}
-                  </p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                    <p style={{ color: '#475569', fontSize: '0.85rem', flex: 1 }}>
+                      🖥️ {laptop.size} | 💼 {laptop.subscriptionType}
+                    </p>
+                    <span style={{
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      fontSize: '0.75rem',
+                      fontWeight: '600',
+                      backgroundColor: laptop.status === 'Available' ? '#dcfce7' : '#fee2e2',
+                      color: laptop.status === 'Available' ? '#16a34a' : '#dc2626',
+                    }}>
+                      {laptop.status}
+                    </span>
+                  </div>
                   <p style={{
                     fontSize: '0.85rem',
                     color: '#334155',

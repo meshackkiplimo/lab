@@ -7,8 +7,13 @@ const laptopSchema = new mongoose.Schema({
   subscriptionType: { type: String, required: true },
   features: { type: String, required: true },
   price: { type: Number, required: true },
+
   image: { type: String }, // base64 or URL
-  available: { type: Boolean, default: true },
+  status: {
+    type: String,
+    enum: ['Available', 'Out of Stock'],
+    default: 'Available'
+  },
   createdAt: { type: Date, default: Date.now }
 });
 
