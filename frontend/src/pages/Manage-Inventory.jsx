@@ -181,53 +181,29 @@ const ManageInventory = () => {
 
   return (
     <div style={containerStyle}>
-      <div style={{
-        display: "flex",
-        gap: "32px",
-        marginBottom: "32px",
-        justifyContent: "center",
-        flexWrap: "wrap"
-      }}>
-        <div style={{
-          backgroundColor: '#fff',
-          borderRadius: '12px',
-          padding: '20px',
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-          minWidth: '280px',
-          textAlign: 'center'
-        }}>
-          <h3 style={{ fontSize: '1.2rem', color: '#334155', marginBottom: '12px' }}>Total Amount Paid</h3>
-          <p style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#059669' }}>
-            KES {totalPaid.toLocaleString()}
-          </p>
+      <div className="stats-cards">
+        <div className="stats-card stats-amount">
+          <span className="stats-icon" role="img" aria-label="Amount Paid">💰</span>
+          <div>
+            <div className="stats-value">KES {totalPaid.toLocaleString()}</div>
+            <div className="stats-label">Total Amount Paid</div>
+          </div>
         </div>
 
-        <div style={{
-          backgroundColor: '#fff',
-          borderRadius: '12px',
-          padding: '20px',
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-          minWidth: '280px',
-          textAlign: 'center'
-        }}>
-          <h3 style={{ fontSize: '1.2rem', color: '#334155', marginBottom: '12px' }}>Total Expected</h3>
-          <p style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#2563eb' }}>
-            KES {totalExpected.toLocaleString()}
-          </p>
+        <div className="stats-card stats-expected">
+          <span className="stats-icon" role="img" aria-label="Expected">💵</span>
+          <div>
+            <div className="stats-value">KES {totalExpected.toLocaleString()}</div>
+            <div className="stats-label">Total Expected</div>
+          </div>
         </div>
 
-        <div style={{
-          backgroundColor: '#fff',
-          borderRadius: '12px',
-          padding: '20px',
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-          minWidth: '280px',
-          textAlign: 'center'
-        }}>
-          <h3 style={{ fontSize: '1.2rem', color: '#334155', marginBottom: '12px' }}>Total Remaining</h3>
-          <p style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#dc2626' }}>
-            KES {totalRemaining.toLocaleString()}
-          </p>
+        <div className="stats-card stats-remaining">
+          <span className="stats-icon" role="img" aria-label="Remaining">⏳</span>
+          <div>
+            <div className="stats-value">KES {totalRemaining.toLocaleString()}</div>
+            <div className="stats-label">Total Remaining</div>
+          </div>
         </div>
       </div>
 

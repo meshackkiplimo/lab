@@ -73,8 +73,13 @@ useEffect(() => {
     : payments;
 
   const totalPayments = filteredPayments.length;
-  const totalAmountPaid = filteredPayments
-    .reduce((sum, payment) => sum + (Number(payment.amount) || 0), 0);
+  // Calculate totals using same logic as ManageInventory
+  const totalAmountPaid = filteredPayments.reduce((sum, p) => {
+    const amount = Number(p.amount || 0);
+    return sum + (isNaN(amount) ? 0 : amount);
+  }, 0);
+
+  console.log('💰 Total Amount Paid:', totalAmountPaid);
 
 const getStatusColor = (status) => {
   switch (status?.toLowerCase()) {
@@ -164,47 +169,39 @@ const handlePrintReceipt = async (payment) => {
   return (
     <div className="dashboard">
       {/* --- Stats Cards Section --- */}
+      {/* Stats Cards */}
       <div className="stats-cards">
-        <div className="stats-card stats-apps">
-          <span className="stats-icon" role="img" aria-label="Applications">💻</span>
-          <div>
-            <div className="stats-value">{totalApplications}</div>
-            <div className="stats-label">Total Applications</div>
-          </div>
-        </div>
-        <div className="stats-card stats-approved">
-          <span className="stats-icon" role="img" aria-label="Approved">✅</span>
-          <div>
-            <div className="stats-value">{approvedApplications}</div>
-            <div className="stats-label">Approved</div>
-          </div>
-        </div>
-        <div className="stats-card stats-pending">
-          <span className="stats-icon" role="img" aria-label="Pending">⏳</span>
-          <div>
-            <div className="stats-value">{pendingApplications}</div>
-            <div className="stats-label">Pending</div>
-          </div>
-        </div>
-        <div className="stats-card stats-rejected">
-          <span className="stats-icon" role="img" aria-label="Rejected">❌</span>
-          <div>
-            <div className="stats-value">{rejectedApplications}</div>
-            <div className="stats-label">Rejected</div>
-          </div>
-        </div>
-        <div className="stats-card stats-payments">
-          <span className="stats-icon" role="img" aria-label="Payments">💰</span>
-          <div>
-            <div className="stats-value">{totalPayments}</div>
-            <div className="stats-label">Payments</div>
-          </div>
-        </div>
-        <div className="stats-card stats-amount">
-          <span className="stats-icon" role="img" aria-label="Amount Paid">🪙</span>
+        <div className="stats-card stats-paid">
+          <span className="stats-icon" role="img" aria-label="Amount Paid">💰</span>
           <div>
             <div className="stats-value">KES {totalAmountPaid.toLocaleString()}</div>
-            <div className="stats-label">Total Paid</div>
+            <div className="stats-label">Total Amount Paid</div>
+          </div>
+        </div>
+
+        <div className="stats-card stats-expected">
+          <span className="stats-icon" role="img" aria-label="Expected">💵</span>
+          <div>
+            <div className="stats-value">
+              KES {applications.reduce((sum, app) => sum + Number(app.laptopDetails?.price || 0), 0).toLocaleString()}
+            </div>
+            <div className="stats-label">Total Expected</div>
+          </div>
+        </div>
+
+        <div className="stats-card stats-remaining">
+          <span className="stats-icon" role="img" aria-label="Remaining">⏳</span>
+          <div>
+            <div className="stats-value">
+              KES {Math.max(0, applications.reduce((sum, app) => {
+                const price = Number(app.laptopDetails?.price || 0);
+                const paid = payments
+                  .filter(p => String(p.laptopId) === String(app.laptop?._id))
+                  .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+                return sum + Math.max(0, price - paid);
+              }, 0)).toLocaleString()}
+            </div>
+            <div className="stats-label">Total Remaining</div>
           </div>
         </div>
       </div>
@@ -223,19 +220,50 @@ const handlePrintReceipt = async (payment) => {
         ) : (
           <div className="applications-grid">
             {applications.map((app) => {
-              // Include all payments for this laptop
-              const paid = payments
-                .filter(
-                  (p) =>
-                    p.laptopId === (app.laptop?._id || app.laptop) &&
-                    Number(p.amount) > 0
-                )
-                .reduce((sum, p) => sum + Number(p.amount), 0);
-              
-              const price = Number(app.laptopDetails?.price) || 0;
-              const remaining = Math.max(price - paid, 0);
+              // Get payments for this laptop
+              const laptopId = String(app.laptop?._id || app.laptop);
+              const laptopPayments = payments
+                .filter(p => {
+                  // Handle both populated and unpopulated laptopId field
+                  const paymentLaptopId = String(
+                    p.laptopId?._id || // Populated laptopId
+                    p.laptopId || // Raw ObjectId
+                    p._doc?.laptopId // Mongoose document
+                  );
+                  const matches = paymentLaptopId === laptopId;
+                  
+                  console.log('Payment Check:', {
+                    payment: p._id,
+                    amount: p.amount,
+                    paymentLaptopId,
+                    targetLaptopId: laptopId,
+                    matches
+                  });
+                  
+                  return matches;
+                });
 
-              const paymentProgress = (paid / price) * 100;
+              // Calculate total paid amount
+              const price = Number(app.laptopDetails?.price || 0);
+              const paid = laptopPayments.reduce((sum, p) => {
+                const amount = Number(p.amount || 0);
+                console.log('Adding payment amount:', amount);
+                return sum + amount;
+              }, 0);
+
+              // Detailed logging for debugging
+              console.log('Payment Summary:', {
+                laptopId: app.laptop?._id,
+                model: app.laptopDetails?.model,
+                price,
+                totalPayments: laptopPayments.length,
+                paymentAmounts: laptopPayments.map(p => p.amount),
+                totalPaid: paid,
+                remaining: Math.max(0, price - paid)
+              });
+
+              const remaining = Math.max(0, price - paid);
+              const ratio = price > 0 ? paid / price : 0;
 
               return (
                 <div
@@ -272,13 +300,16 @@ const handlePrintReceipt = async (payment) => {
                       position: "absolute",
                       right: "18px",
                       bottom: "18px",
-                      background: paymentProgress === 100 ? "#22c55e" : "#0ea5e9",
+                      background: paid >= price ? '#22c55e' : '#dc2626',
+                      color: '#ffffff',
                       borderRadius: "8px",
                       padding: "0.35rem 0.7rem",
                       fontSize: "0.93rem",
                       color: "#fff",
-                      boxShadow: paymentProgress === 100
+                      boxShadow: ratio >= 1
                         ? "0 2px 8px rgba(34,197,94,0.15)"
+                        : ratio >= 0.5
+                        ? "0 2px 8px rgba(245,158,11,0.15)"
                         : "0 2px 8px rgba(14,165,233,0.15)",
                       minWidth: "130px",
                       textAlign: "right",
@@ -288,7 +319,7 @@ const handlePrintReceipt = async (payment) => {
                     }}
                   >
                     <div style={{ fontSize: '0.8rem', marginBottom: '2px', opacity: 0.9 }}>
-                      Progress: {Math.round(paymentProgress)}%
+                      Progress: {(ratio * 100).toFixed(0)}%
                     </div>
                     <div>
                       Paid: <span style={{ fontWeight: 700 }}>KES {paid.toLocaleString()}</span>
