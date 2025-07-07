@@ -121,7 +121,7 @@ export default function DashboardLayout() {
               <Link to="/add-laptop" style={styles.navLink}>➕ Add Laptop</Link>
                <Link to="/manage-payment" style={styles.navLink}>Manage payment</Link>
               <Link to="/Manage-Inventory" style={styles.navLink}>📦 Manage Inventory</Link>
-                  <Link to="/admin/available-laptops" style={styles.navLink}>📦 Manage Laptob</Link>
+                  <Link to="/admin/available-laptops" style={styles.navLink}>📦 Manage Laptop</Link>
                      <Link to="/analytics" style={styles.navLink}>Analytics</Link>
             </>
           )}
