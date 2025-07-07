@@ -50,6 +50,13 @@ useEffect(() => {
   };
 
   fetchUserData();
+
+  // Set up polling for real-time updates
+  const interval = setInterval(() => {
+    fetchUserData();
+  }, 5000); // Update every 5 seconds
+
+  return () => clearInterval(interval);
 }, []);
 
   // --- Stats Aggregation ---
@@ -67,7 +74,6 @@ useEffect(() => {
 
   const totalPayments = filteredPayments.length;
   const totalAmountPaid = filteredPayments
-    .filter(payment => payment.status?.toLowerCase() === 'success' || payment.status?.toLowerCase() === 'pending')
     .reduce((sum, payment) => sum + (Number(payment.amount) || 0), 0);
 
 const getStatusColor = (status) => {
@@ -123,7 +129,7 @@ const handlePrintReceipt = async (payment) => {
   doc.text(`KES ${payment.amount}`, 25, y);
   y += 6;
   doc.text("Status:", 5, y);
-  doc.text(String(payment.status), 25, y);
+  doc.text("success", 25, y);
   y += 6;
   doc.text("Method:", 5, y);
   doc.text(String(payment.method), 25, y);
@@ -217,7 +223,7 @@ const handlePrintReceipt = async (payment) => {
         ) : (
           <div className="applications-grid">
             {applications.map((app) => {
-              // Find all successful payments for this laptop
+              // Include all payments for this laptop
               const paid = payments
                 .filter(
                   (p) =>
@@ -225,8 +231,11 @@ const handlePrintReceipt = async (payment) => {
                     Number(p.amount) > 0
                 )
                 .reduce((sum, p) => sum + Number(p.amount), 0);
+              
               const price = Number(app.laptopDetails?.price) || 0;
               const remaining = Math.max(price - paid, 0);
+
+              const paymentProgress = (paid / price) * 100;
 
               return (
                 <div
@@ -263,12 +272,14 @@ const handlePrintReceipt = async (payment) => {
                       position: "absolute",
                       right: "18px",
                       bottom: "18px",
-                      background: "#22c55e",
+                      background: paymentProgress === 100 ? "#22c55e" : "#0ea5e9",
                       borderRadius: "8px",
                       padding: "0.35rem 0.7rem",
                       fontSize: "0.93rem",
                       color: "#fff",
-                      boxShadow: "0 2px 8px rgba(34,197,94,0.10)",
+                      boxShadow: paymentProgress === 100
+                        ? "0 2px 8px rgba(34,197,94,0.15)"
+                        : "0 2px 8px rgba(14,165,233,0.15)",
                       minWidth: "130px",
                       textAlign: "right",
                       zIndex: 2,
@@ -276,6 +287,9 @@ const handlePrintReceipt = async (payment) => {
                       letterSpacing: "0.01em"
                     }}
                   >
+                    <div style={{ fontSize: '0.8rem', marginBottom: '2px', opacity: 0.9 }}>
+                      Progress: {Math.round(paymentProgress)}%
+                    </div>
                     <div>
                       Paid: <span style={{ fontWeight: 700 }}>KES {paid.toLocaleString()}</span>
                     </div>
@@ -374,7 +388,7 @@ const handlePrintReceipt = async (payment) => {
                               color: "#fff"
                             }}
                           >
-                            {payment.status?.toLowerCase() === "pending" ? "success" : payment.status}
+                            success
                           </span>
                         </td>
                         <td>{payment.method}</td>
