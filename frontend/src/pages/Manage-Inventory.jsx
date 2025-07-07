@@ -82,6 +82,13 @@ const ManageInventory = () => {
 
   useEffect(() => {
     fetchApplications();
+    // Set up refresh interval
+    const refreshInterval = setInterval(() => {
+      fetchApplications();
+    }, 10000); // Refresh every 10 seconds
+
+    // Cleanup on unmount
+    return () => clearInterval(refreshInterval);
   }, []);
 
   const updateStatus = async (id, status) => {
@@ -238,13 +245,14 @@ const ManageInventory = () => {
                 <th style={thStyle}>Amount Paid</th>
                 <th style={thStyle}>Remaining</th>
                 <th style={thStyle}>Actions</th>
+                <th style={thStyle}>Progress</th>
                 <th style={thStyle}>Delete</th>
               </tr>
             </thead>
             <tbody>
               {inventory.length === 0 ? (
                 <tr>
-                  <td colSpan="9" style={{ ...tdStyle, textAlign: 'center', padding: '20px', color: '#888' }}>
+                  <td colSpan="10" style={{ ...tdStyle, textAlign: 'center', padding: '20px', color: '#888' }}>
                     {loading ? 'Loading...' : 'No laptop applications found.'}
                   </td>
                 </tr>
@@ -315,10 +323,44 @@ const ManageInventory = () => {
                       </select>
                     </td>
                     <td style={tdStyle}>
+                      {(() => {
+                        const ratio = item.amountPaid / item.laptopPrice;
+                        const getProgressStyle = (ratio) => {
+                          let backgroundColor, color;
+                          if (ratio >= 1) {
+                            backgroundColor = '#d1fae5';
+                            color = '#065f46';
+                          } else if (ratio >= 0.5) {
+                            backgroundColor = '#fef9c3';
+                            color = '#92400e';
+                          } else {
+                            backgroundColor = '#fee2e2';
+                            color = '#991b1b';
+                          }
+                          return {
+                            padding: '4px 10px',
+                            borderRadius: '12px',
+                            fontWeight: '600',
+                            fontSize: '0.85rem',
+                            backgroundColor,
+                            color,
+                            display: 'inline-block',
+                            minWidth: '80px',
+                            textAlign: 'center',
+                          };
+                        };
+                        return (
+                          <span style={getProgressStyle(ratio)}>
+                            {(ratio * 100).toFixed(0)}%
+                          </span>
+                        );
+                      })()}
+                    </td>
+                    <td style={tdStyle}>
                       <button
                         onClick={() => deleteApplication(item.id)}
                         style={{
-                          backgroundColor: '#ef4444',
+                          backgroundColor: loading ? '#9ca3af' : '#ef4444',
                           color: '#fff',
                           padding: '6px 12px',
                           borderRadius: '6px',
