@@ -23,7 +23,17 @@ export default function AdminLaptopManager() {
       navigate(role ? '/' : '/login');
       return;
     }
+
+    // Initial fetch
     fetchLaptops();
+
+    // Set up polling for real-time updates
+    const interval = setInterval(() => {
+      fetchLaptops();
+    }, 3000); // Update every 3 seconds
+
+    // Cleanup interval on unmount
+    return () => clearInterval(interval);
   }, [navigate]);
 
   const fetchLaptops = async () => {
@@ -162,6 +172,20 @@ export default function AdminLaptopManager() {
             >
               <div style={{ flex: 1 }}>
                 <h4>{laptop.brand} {laptop.model}</h4>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <span
+                    style={{
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      fontSize: '0.75rem',
+                      fontWeight: '600',
+                      backgroundColor: laptop.status === 'Available' ? '#dcfce7' : '#fee2e2',
+                      color: laptop.status === 'Available' ? '#16a34a' : '#dc2626',
+                    }}
+                  >
+                    {laptop.status || 'Available'}
+                  </span>
+                </div>
                 <p>🧩 Features: {laptop.features}</p>
                 <p>💰 KES {laptop.price} | 💼 {laptop.subscriptionType} | 🖥️ {laptop.size}</p>
               </div>
