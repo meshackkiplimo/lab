@@ -188,19 +188,7 @@ export default function DashboardLayout() {
               </div>
             </div>
 
-            <div style={{ ...styles.userCard, backgroundColor: '#ef4444', color: '#fff' }}>
-              <h2>💰 Payment Status</h2>
-              {paymentStatus ? (
-                <ul style={{ listStyle: 'none', padding: 0 }}>
-                  <li>Subscription: {paymentStatus.subscription}</li>
-                  <li>Total Paid: ksh{paymentStatus.paid.toFixed(2)}</li>
-                  <li>Remaining: ksh{paymentStatus.remaining.toFixed(2)}</li>
-                  <li>Monthly: ksh{paymentStatus.monthly}</li>
-                </ul>
-              ) : (
-                <p>Loading payment info...</p>
-              )}
-            </div>
+            
           </section>
         )}
       </main>
