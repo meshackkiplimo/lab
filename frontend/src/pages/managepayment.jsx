@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Apidomain } from '../utils/ApiDomain';
+import './managepayment.css';
 
 export default function AdminPaymentsManager() {
   const [payments, setPayments] = useState([]);
@@ -52,50 +53,84 @@ export default function AdminPaymentsManager() {
   };
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto', padding: '2rem' }}>
-      <h1 style={{ textAlign: 'center', marginBottom: '2rem' }}>💵 All M-Pesa Payments</h1>
+    <div className="payments-container">
+      <h1 className="payments-header">💵 M-Pesa Payments</h1>
 
       {loading ? (
-        <p>Loading payments...</p>
+        <p className="loading-text">Loading payments...</p>
       ) : payments.length === 0 ? (
-        <p>No payments found.</p>
+        <p className="no-data-text">No payments found.</p>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {payments.map((payment) => (
-            <div
-              key={payment._id}
-              style={{
-                background: '#f9fafb',
-                padding: '1rem',
-                borderRadius: 10,
-                border: '1px solid #e5e7eb',
-                boxShadow: '0 2px 6px rgba(0, 0, 0, 0.05)'
-              }}
-            >
-              <p><strong>User:</strong> {payment.userId?.firstName} {payment.userId?.lastName}</p>
-              <p><strong>Laptop:</strong> {payment.laptopId?.brand} {payment.laptopId?.model}</p>
-              <p><strong>Amount Paid:</strong> KES {payment.amount}</p>
-              <p><strong>Total Price:</strong> KES {payment.totalPrice}</p>
-              <p><strong>Remaining Balance:</strong> KES {payment.remainingBalance}</p>
-              <p><strong>Status:</strong> {payment.status}</p>
-              <p><strong>Checkout ID:</strong> {payment.checkoutId}</p>
-              <p><strong>Date:</strong> {new Date(payment.createdAt).toLocaleString()}</p>
-              <button
-                onClick={() => deletePayment(payment._id)}
-                style={{
-                  marginTop: 8,
-                  background: '#dc2626',
-                  color: '#fff',
-                  border: 'none',
-                  padding: '0.5rem 1rem',
-                  borderRadius: 5,
-                  cursor: 'pointer'
-                }}
-              >
-                🗑️ Delete Payment
-              </button>
-            </div>
-          ))}
+        <div className="payments-table-container">
+          <table className="payments-table">
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Laptop</th>
+                <th>Amount Paid</th>
+                <th>Total Price</th>
+                <th>Remaining</th>
+                <th>Status</th>
+                <th>Checkout ID</th>
+                <th>Date</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {payments.map((payment) => (
+                <tr key={payment._id}>
+                  <td>
+                    <span className="user-name">
+                      {payment.userId?.firstName} {payment.userId?.lastName}
+                    </span>
+                  </td>
+                  <td>
+                    <span className="laptop-info">
+                      {payment.laptopId?.brand} {payment.laptopId?.model}
+                    </span>
+                  </td>
+                  <td>
+                    <span className="amount">
+                      KES {payment.amount}
+                    </span>
+                  </td>
+                  <td>
+                    <span className="amount">
+                      KES {payment.totalPrice}
+                    </span>
+                  </td>
+                  <td>
+                    <span className="remaining-balance">
+                      KES {payment.remainingBalance}
+                    </span>
+                  </td>
+                  <td>
+                    <span className="payment-status">
+                      {payment.status}
+                    </span>
+                  </td>
+                  <td>
+                    <span className="checkout-id">
+                      {payment.checkoutId}
+                    </span>
+                  </td>
+                  <td>
+                    <span className="payment-date">
+                      {new Date(payment.createdAt).toLocaleString()}
+                    </span>
+                  </td>
+                  <td>
+                    <button
+                      onClick={() => deletePayment(payment._id)}
+                      className="delete-payment-btn"
+                    >
+                      🗑️ Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>

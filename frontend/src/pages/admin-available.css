@@ -1,0 +1,135 @@
+.admin-laptop-container {
+  min-height: 100vh;
+  background: linear-gradient(to bottom, #f8fafc, #e2e8f0);
+  padding: 2rem;
+}
+
+.admin-laptop-header {
+  text-align: center;
+  color: #1e40af;
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 2rem;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.table-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: white;
+}
+
+.admin-table th {
+  background: #f1f5f9;
+  color: #1e293b;
+  font-weight: 600;
+  padding: 16px;
+  text-align: left;
+  font-size: 0.95rem;
+  border-bottom: 2px solid #e2e8f0;
+  white-space: nowrap;
+}
+
+.admin-table td {
+  padding: 16px;
+  border-bottom: 1px solid #e2e8f0;
+  color: #334155;
+  font-size: 0.95rem;
+}
+
+.admin-table tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+.laptop-name {
+  font-weight: 600;
+  color: #1e40af;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-align: center;
+  min-width: 100px;
+}
+
+.status-available {
+  background-color: #dcfce7;
+  color: #16a34a;
+}
+
+.status-outofstock {
+  background-color: #fee2e2;
+  color: #dc2626;
+}
+
+.delete-btn {
+  background-color: #dc2626;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.delete-btn:hover {
+  background-color: #b91c1c;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.price-cell {
+  font-weight: 600;
+  color: #059669;
+}
+
+.features-cell {
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.loading-text {
+  text-align: center;
+  color: #6b7280;
+  font-size: 1.1rem;
+  padding: 2rem;
+}
+
+.no-data-text {
+  text-align: center;
+  color: #6b7280;
+  font-size: 1.1rem;
+  padding: 2rem;
+  background: #f9fafb;
+  border-radius: 8px;
+  margin: 1rem;
+}
+
+@media (max-width: 1024px) {
+  .table-container {
+    margin: 0 1rem;
+    overflow-x: auto;
+  }
+  
+  .admin-table {
+    min-width: 800px;
+  }
+}
