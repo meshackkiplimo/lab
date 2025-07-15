@@ -5,8 +5,14 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const axios = require('axios');
 const path = require('path');
+const http = require('http');
+const NotificationService = require('./services/notificationService');
 
 const app = express();
+const server = http.createServer(app);
+
+// Initialize notification service
+let notificationService;
 
 // Middleware
 // Enable CORS for all routes
@@ -105,8 +111,16 @@ mongoose.connect(process.env.MONGO_URI, {
   useUnifiedTopology: true
 }).then(() => {
   console.log('MongoDB connected');
-  app.listen(PORT, () => {
+  
+  // Start server with HTTP and WebSocket support
+  server.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
+    
+    // Initialize notification service after server starts
+    notificationService = new NotificationService(server);
+    
+    // Make notification service available globally
+    global.notificationService = notificationService;
   });
 }).catch(err => {
   console.error('MongoDB connection error:', err);

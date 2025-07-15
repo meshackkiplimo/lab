@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/authcontext';
 import { Chart, ArcElement, Tooltip as ChartTooltip } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
+import Notifications from '../components/Notifications';
 
 Chart.register(ArcElement, ChartTooltip);
 
@@ -38,6 +39,7 @@ export default function DashboardLayout() {
   const [paymentProgress, setPaymentProgress] = useState(0);
   const [clearanceStatus, setClearanceStatus] = useState('Pending');
   const [paymentStatus, setPaymentStatus] = useState(null);
+  const [showNotifications, setShowNotifications] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -67,6 +69,18 @@ export default function DashboardLayout() {
       })
       .catch(console.error);
   }, []);
+
+  // Close notifications when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showNotifications && !event.target.closest('.notifications-container')) {
+        setShowNotifications(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showNotifications]);
 
   if (!user) return <Navigate to="/" />;
 
@@ -126,9 +140,33 @@ export default function DashboardLayout() {
             </>
           )}
          {  isUser &&(
-           <Link to="/user-stats" style={styles.navLink}>User stats</Link>
-
-         )}
+           <>
+             <Link to="/user-stats" style={styles.navLink}>User stats</Link>
+             <div
+               className="notifications-container"
+               onClick={() => setShowNotifications(!showNotifications)}
+               style={{
+                 display: 'flex',
+                 alignItems: 'center',
+                 justifyContent: 'space-between',
+                 padding: '0.6rem 1rem',
+                 borderRadius: '8px',
+                 backgroundColor: '#2563eb',
+                 marginTop: '0.5rem',
+                 cursor: 'pointer',
+                 transition: 'background-color 0.2s'
+               }}
+               onMouseEnter={e => e.target.style.backgroundColor = '#1d4ed8'}
+               onMouseLeave={e => e.target.style.backgroundColor = '#2563eb'}
+             >
+               <span style={{ color: '#fff', fontWeight: 500 }}>🔔 Notifications</span>
+               <Notifications
+                 isOpen={showNotifications}
+                 onToggle={() => {}} // Empty function since we handle click on parent
+               />
+             </div>
+           </>
+        )}
         </nav>
       </aside>
 

@@ -92,17 +92,49 @@ class MpesaController {
             payment.status = 'success';
             payment.mpesaResultDesc = "Payment processed successfully";
             await payment.save();
+            
             console.log('✅ Payment status updated to success:', {
               checkoutId: response.CheckoutRequestID,
               amount: payment.amount,
-              mpesaResultDesc: payment.mpesaResultDesc // Include detailed status description
+              mpesaResultDesc: payment.mpesaResultDesc
             });
+
+            // Emit real-time payment success notification
+            if (global.notificationService && payment.userId) {
+              try {
+                const laptop = await require('../models/laptop').findById(payment.laptopId);
+                await global.notificationService.emitPaymentSuccess(payment.userId, {
+                  _id: payment._id,
+                  amount: payment.amount,
+                  laptopModel: laptop ? `${laptop.brand} ${laptop.model}` : 'laptop',
+                  remainingBalance: payment.remainingBalance,
+                  mpesaReceiptNumber: payment.mpesaReceiptNumber
+                });
+              } catch (notifyError) {
+                console.error('❌ Error sending payment success notification:', notifyError);
+              }
+            }
             return;
           } else if (statusResponse.ResultCode !== undefined) {
             // Only mark as failed if we get a clear failure response
             payment.status = 'failed';
             payment.mpesaResultDesc = statusResponse.ResultDesc || 'Payment failed';
             await payment.save();
+
+            // Emit real-time payment failed notification
+            if (global.notificationService && payment.userId) {
+              try {
+                const laptop = await require('../models/laptop').findById(payment.laptopId);
+                await global.notificationService.emitPaymentFailed(payment.userId, {
+                  _id: payment._id,
+                  amount: payment.amount,
+                  laptopModel: laptop ? `${laptop.brand} ${laptop.model}` : 'laptop',
+                  reason: statusResponse.ResultDesc || 'Payment failed'
+                });
+              } catch (notifyError) {
+                console.error('❌ Error sending payment failed notification:', notifyError);
+              }
+            }
             return;
           }
 
@@ -127,8 +159,7 @@ class MpesaController {
         method: 'Mpesa',
         status: 'pending',
         checkoutId: response.CheckoutRequestID,
-        mpesaResultDesc: `Payment of KES ${paymentAmount}, remaining balance KES ${newRemaining}`,
-        laptopId: laptopId // Ensure laptop ID is recorded
+        mpesaResultDesc: `Payment of KES ${paymentAmount}, remaining balance KES ${newRemaining}`
       });
 
       console.log('💾 Saving payment record:', {
@@ -164,7 +195,7 @@ class MpesaController {
     try {
       console.log('🔥 M-Pesa callback:', {
         timestamp: new Date().toISOString(),
-        body: JSON.stringify(req.body, null, 2) // Ensure logs are formatted and visible
+        body: JSON.stringify(req.body, null, 2)
       });
       
       const stkCallback = req.body?.Body?.stkCallback;
@@ -218,36 +249,32 @@ class MpesaController {
         amount: payment.amount
       });
 
-      return res.status(200).json({
-        message: 'Payment processed',
-        status: payment.status,
-        amount: payment.amount
-      });
+      // Emit real-time notification based on payment status
+      if (global.notificationService && payment.userId) {
+        try {
+          const laptop = await require('../models/laptop').findById(payment.laptopId);
+          const laptopModel = laptop ? `${laptop.brand} ${laptop.model}` : 'laptop';
 
-      // Extract transaction details from callback metadata
-      if (CallbackMetadata && CallbackMetadata.Item) {
-        CallbackMetadata.Item.forEach(item => {
-          switch(item.Name) {
-            case 'MpesaReceiptNumber':
-              payment.mpesaReceiptNumber = item.Value;
-              break;
-            case 'TransactionDate':
-              payment.transactionDate = item.Value;
-              break;
-            case 'Amount':
-              payment.confirmedAmount = item.Value;
-              break;
+          if (isSuccess) {
+            await global.notificationService.emitPaymentSuccess(payment.userId, {
+              _id: payment._id,
+              amount: payment.amount,
+              laptopModel,
+              remainingBalance: payment.remainingBalance,
+              mpesaReceiptNumber: payment.mpesaReceiptNumber
+            });
+          } else {
+            await global.notificationService.emitPaymentFailed(payment.userId, {
+              _id: payment._id,
+              amount: payment.amount,
+              laptopModel,
+              reason: ResultDesc || 'Payment failed'
+            });
           }
-        });
+        } catch (notifyError) {
+          console.error('❌ Error sending real-time notification:', notifyError);
+        }
       }
-
-      await payment.save();
-      console.log('✅ Payment updated:', {
-        checkoutId: CheckoutRequestID,
-        status: payment.status,
-        amount: payment.amount,
-        mpesaResultDesc: payment.mpesaResultDesc // Include detailed status description
-      });
 
       return res.status(200).json({
         message: 'Payment processed',
@@ -381,27 +408,21 @@ class MpesaController {
       return res.status(500).json({ error: 'Failed to get payment details' });
     }
   }
-}
 
-// delete payment
-MpesaController.deletePayment = async (req, res) => {
-  try {
-    const { paymentId } = req.params;
+  static async deletePayment(req, res) {
+    try {
+      const { paymentId } = req.params;
 
-    const payment = await
-    Payment
-      .findByIdAndDelete(paymentId);
-    if (!payment) {
-      return res.status(404).json({ message: 'Payment not found' });
+      const payment = await Payment.findByIdAndDelete(paymentId);
+      if (!payment) {
+        return res.status(404).json({ message: 'Payment not found' });
+      }
+      return res.status(200).json({ message: 'Payment deleted successfully' });
+    } catch (error) {
+      console.error('❌ Error deleting payment:', error);
+      return res.status(500).json({ error: 'Failed to delete payment' });
     }
-    return res.status(200).json({ message: 'Payment deleted successfully' });
-  } catch (error) {
-    console.error('❌ Error deleting payment:', error);
-    return res.status(500).json({ error: 'Failed to delete payment' });
   }
 }
-
-
-    
 
 module.exports = MpesaController;
