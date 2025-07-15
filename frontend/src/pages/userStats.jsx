@@ -195,9 +195,17 @@ const handlePrintReceipt = async (payment) => {
             <div className="stats-value">
               KES {Math.max(0, applications.reduce((sum, app) => {
                 const price = Number(app.laptopDetails?.price || 0);
-                const paid = payments
-                  .filter(p => String(p.laptopId) === String(app.laptop?._id))
-                  .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+                const laptopId = String(app.laptop?._id || app.laptop);
+                const laptopPayments = payments.filter(p => {
+                  // Handle both populated and unpopulated laptopId field
+                  const paymentLaptopId = String(
+                    p.laptopId?._id || // Populated laptopId
+                    p.laptopId || // Raw ObjectId
+                    p._doc?.laptopId // Mongoose document
+                  );
+                  return paymentLaptopId === laptopId;
+                });
+                const paid = laptopPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
                 return sum + Math.max(0, price - paid);
               }, 0)).toLocaleString()}
             </div>
