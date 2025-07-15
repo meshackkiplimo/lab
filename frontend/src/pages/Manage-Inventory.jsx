@@ -63,6 +63,7 @@ const ManageInventory = () => {
           id: app._id,
           name: `${app.student?.firstName || ''} ${app.student?.lastName || ''}`.trim(),
           email: app.student?.email,
+          year: app.year || '1st Year',
           laptopBrand: `${app.laptop?.brand || ''} ${app.laptop?.model || ''}`.trim(),
           applicationStatus: app.status || 'Pending',
           laptopPrice: laptopPrice,
@@ -215,6 +216,7 @@ const ManageInventory = () => {
               <tr>
                 <th style={thStyle}>Name</th>
                 <th style={thStyle}>Email</th>
+                <th style={thStyle}>Year</th>
                 <th style={thStyle}>Laptop</th>
                 <th style={thStyle}>Status</th>
                 <th style={thStyle}>Total Price</th>
@@ -228,7 +230,7 @@ const ManageInventory = () => {
             <tbody>
               {inventory.length === 0 ? (
                 <tr>
-                  <td colSpan="10" style={{ ...tdStyle, textAlign: 'center', padding: '20px', color: '#888' }}>
+                  <td colSpan="11" style={{ ...tdStyle, textAlign: 'center', padding: '20px', color: '#888' }}>
                     {loading ? 'Loading...' : 'No laptop applications found.'}
                   </td>
                 </tr>
@@ -237,6 +239,23 @@ const ManageInventory = () => {
                   <tr key={item.id}>
                     <td style={tdStyle}>{item.name || 'N/A'}</td>
                     <td style={tdStyle}>{item.email}</td>
+                    <td style={tdStyle}>
+                      <span
+                        style={{
+                          padding: '4px 8px',
+                          borderRadius: '8px',
+                          fontWeight: '600',
+                          fontSize: '0.8rem',
+                          backgroundColor: '#e0f2fe',
+                          color: '#0369a1',
+                          display: 'inline-block',
+                          minWidth: '70px',
+                          textAlign: 'center',
+                        }}
+                      >
+                        {item.year}
+                      </span>
+                    </td>
                     <td style={tdStyle}>{item.laptopBrand || 'Unknown'}</td>
                     <td style={tdStyle}>
                       <span
