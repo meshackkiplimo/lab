@@ -47,3 +47,38 @@ exports.deleteLaptop = async (req, res) => {
     res.status(400).json({ error: err.message });
   }
 };
+
+
+// Admin: Get laptop types/brands statistics
+exports.getLaptopTypes = async (req, res) => {
+  try {
+    console.log('📊 Getting laptop types statistics');
+    const laptops = await Laptop.find();
+    
+    // Group laptops by brand and count them
+    const brandCounts = {};
+    laptops.forEach(laptop => {
+      const brand = laptop.brand.toLowerCase();
+      brandCounts[brand] = (brandCounts[brand] || 0) + 1;
+    });
+
+    // Convert to array format for charts
+    const laptopTypes = Object.entries(brandCounts).map(([brand, count]) => ({
+      brand: brand.charAt(0).toUpperCase() + brand.slice(1), // Capitalize first letter
+      count,
+      percentage: ((count / laptops.length) * 100).toFixed(1)
+    }));
+
+    console.log(`✅ Found ${laptopTypes.length} different laptop brands`);
+    res.json({
+      totalLaptops: laptops.length,
+      laptopTypes: laptopTypes.sort((a, b) => b.count - a.count) // Sort by count descending
+    });
+  } catch (err) {
+    console.error('❌ Error getting laptop types:', err);
+    res.status(500).json({
+      error: 'Failed to fetch laptop types',
+      details: err.message
+    });
+  }
+};

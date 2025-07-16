@@ -14,7 +14,8 @@ const Analytics = () => {
     totalApplications: 0,
     totalRevenue: 0,
     applicationsByStatus: [],
-    revenueByMonth: []
+    revenueByMonth: [],
+    laptopTypes: []
   });
 
   useEffect(() => {
@@ -33,7 +34,7 @@ const Analytics = () => {
   const fetchAnalytics = async () => {
     try {
       const token = localStorage.getItem('token');
-      const [laptopsRes, applicationsRes, paymentsRes] = await Promise.all([
+      const [laptopsRes, applicationsRes, paymentsRes, laptopTypesRes] = await Promise.all([
         axios.get(`${Apidomain}/laptops`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
@@ -42,12 +43,16 @@ const Analytics = () => {
         }),
         axios.get(`${Apidomain}/mpesa/payments`, {
           headers: { Authorization: `Bearer ${token}` }
+        }),
+        axios.get(`${Apidomain}/laptops/types`, {
+          headers: { Authorization: `Bearer ${token}` }
         })
       ]);
 
       const laptops = laptopsRes.data;
       const applications = applicationsRes.data.applications;
       const payments = paymentsRes.data;
+      const laptopTypesData = laptopTypesRes.data;
 
       // Calculate statistics
       const availableLaptops = laptops.filter(l => l.status === 'Available').length;
@@ -70,7 +75,8 @@ const Analytics = () => {
         totalApplications: applications.length,
         totalRevenue: payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0),
         applicationsByStatus,
-        revenueByMonth
+        revenueByMonth,
+        laptopTypes: laptopTypesData.laptopTypes || []
       });
 
       setLoading(false);
@@ -182,6 +188,77 @@ const Analytics = () => {
             <Legend />
             <Bar dataKey="amount" name="Revenue (KES)" fill="#8884d8" />
           </BarChart>
+        </div>
+
+        {/* Laptop Types Distribution */}
+        <div style={{
+          background: 'white',
+          padding: '1.5rem',
+          borderRadius: '0.5rem',
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)'
+        }}>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '1rem' }}>
+            💻 Laptop Types Distribution
+          </h2>
+          {stats.laptopTypes.length > 0 ? (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
+                <PieChart width={400} height={300}>
+                  <Pie
+                    data={stats.laptopTypes.map(type => ({
+                      name: type.brand,
+                      value: type.count,
+                      percentage: type.percentage
+                    }))}
+                    cx={200}
+                    cy={150}
+                    labelLine={false}
+                    label={({ name, value, percentage }) => `${name}: ${value} (${percentage}%)`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {stats.laptopTypes.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </div>
+              
+              {/* Laptop Types List */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                {stats.laptopTypes.map((type, index) => (
+                  <div key={type.brand} style={{
+                    background: '#f8fafc',
+                    padding: '1rem',
+                    borderRadius: '0.25rem',
+                    borderLeft: `4px solid ${COLORS[index % COLORS.length]}`,
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}>
+                    <div>
+                      <h3 style={{ fontWeight: 'bold', color: '#1e293b' }}>{type.brand}</h3>
+                      <p style={{ fontSize: '0.875rem', color: '#64748b' }}>{type.percentage}% of total</p>
+                    </div>
+                    <div style={{
+                      fontSize: '1.5rem',
+                      fontWeight: 'bold',
+                      color: COLORS[index % COLORS.length]
+                    }}>
+                      {type.count}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div style={{ textAlign: 'center', color: '#64748b', padding: '2rem' }}>
+              No laptop data available
+            </div>
+          )}
         </div>
       </div>
     </div>

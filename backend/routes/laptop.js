@@ -5,12 +5,16 @@ const {
   addLaptop,
   getLaptops,
   updateLaptop,
-  deleteLaptop
+  deleteLaptop,
+  getLaptopTypes
 } = require('../controllers/laptopcontroller');
 const Laptop = require('../models/laptop'); // ✅ ensure this is correct
 
 // 🔒 Protected route: get all laptops (requires authentication)
 router.get('/', auth(), getLaptops);
+
+// 🔒 Admin-only route: get laptop types/brands statistics
+router.get('/types', auth('admin'), getLaptopTypes);
 
 // 🔒 Protected route: get one laptop by ID (requires authentication)
 router.get('/:id', auth(), async (req, res) => {
