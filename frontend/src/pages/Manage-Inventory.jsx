@@ -15,7 +15,7 @@ const ManageInventory = () => {
         },
       });
 
-      // Get payments
+      
       let paymentsData = [];
       try {
         const paymentsRes = await axios.get(`${Apidomain}/mpesa/payments`, {
