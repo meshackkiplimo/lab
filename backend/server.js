@@ -7,12 +7,14 @@ const axios = require('axios');
 const path = require('path');
 const http = require('http');
 const NotificationService = require('./services/notificationService');
+const EmailService = require('./services/emailService');
 
 const app = express();
 const server = http.createServer(app);
 
-// Initialize notification service
+// Initialize services
 let notificationService;
+let emailService;
 
 // Middleware
 // Enable CORS for all routes
@@ -116,11 +118,16 @@ mongoose.connect(process.env.MONGO_URI, {
   server.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
     
-    // Initialize notification service after server starts
+    // Initialize services after server starts
     notificationService = new NotificationService(server);
+    emailService = new EmailService();
     
-    // Make notification service available globally
+    // Make services available globally
     global.notificationService = notificationService;
+    global.emailService = emailService;
+    
+    // Test email service connection
+    emailService.testConnection();
   });
 }).catch(err => {
   console.error('MongoDB connection error:', err);

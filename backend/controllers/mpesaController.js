@@ -99,6 +99,40 @@ class MpesaController {
               mpesaResultDesc: payment.mpesaResultDesc
             });
 
+            // Check if this is the first payment for this laptop and send email
+            try {
+              const previousPayments = await Payment.find({
+                userId: payment.userId,
+                laptopId: payment.laptopId,
+                status: 'success',
+                _id: { $ne: payment._id }
+              });
+
+              if (previousPayments.length === 0) {
+                // This is the first payment - send email notification
+                console.log('🎯 Detected first payment, sending email notification...');
+                
+                const user = await require('../models/User').findById(payment.userId);
+                const laptop = await require('../models/laptop').findById(payment.laptopId);
+                
+                if (user && laptop && global.emailService) {
+                  await global.emailService.sendPaymentReminderEmail(user.email, {
+                    userName: `${user.firstName} ${user.lastName}`,
+                    laptopModel: laptop.model,
+                    laptopBrand: laptop.brand,
+                    totalPrice: payment.totalPrice,
+                    amountPaid: payment.amount,
+                    remainingBalance: payment.remainingBalance,
+                    paymentDate: payment.createdAt || new Date()
+                  });
+                  
+                  console.log('📧 First payment email notification sent to:', user.email);
+                }
+              }
+            } catch (emailError) {
+              console.error('❌ Error sending first payment email:', emailError);
+            }
+
             // Emit real-time payment success notification
             if (global.notificationService && payment.userId) {
               try {
@@ -176,6 +210,30 @@ class MpesaController {
         amount: paymentAmount,
         remaining: newRemaining
       });
+
+      // Send payment initiation email immediately (regardless of M-Pesa result)
+      try {
+        if (global.emailService) {
+          const user = await require('../models/User').findById(req.user.id);
+          
+          if (user) {
+            await global.emailService.sendPaymentReminderEmail(user.email, {
+              userName: `${user.firstName} ${user.lastName}`,
+              laptopModel: laptop.model,
+              laptopBrand: laptop.brand,
+              totalPrice: totalPrice,
+              amountPaid: paymentAmount,
+              remainingBalance: newRemaining,
+              paymentDate: new Date()
+            });
+            
+            console.log('📧 Payment initiation email sent to:', user.email);
+          }
+        }
+      } catch (emailError) {
+        console.error('❌ Error sending payment initiation email:', emailError);
+        // Don't fail the payment process if email fails
+      }
 
       return res.status(200).json({
         success: true,
@@ -256,6 +314,40 @@ class MpesaController {
           const laptopModel = laptop ? `${laptop.brand} ${laptop.model}` : 'laptop';
 
           if (isSuccess) {
+            // Check if this is the first payment for this laptop and send email
+            try {
+              const previousPayments = await Payment.find({
+                userId: payment.userId,
+                laptopId: payment.laptopId,
+                status: 'success',
+                _id: { $ne: payment._id }
+              });
+
+              if (previousPayments.length === 0) {
+                // This is the first payment - send email notification
+                console.log('🎯 Detected first payment via callback, sending email notification...');
+                
+                const user = await require('../models/User').findById(payment.userId);
+                const laptop = await require('../models/laptop').findById(payment.laptopId);
+                
+                if (user && laptop && global.emailService) {
+                  await global.emailService.sendPaymentReminderEmail(user.email, {
+                    userName: `${user.firstName} ${user.lastName}`,
+                    laptopModel: laptop.model,
+                    laptopBrand: laptop.brand,
+                    totalPrice: payment.totalPrice,
+                    amountPaid: payment.amount,
+                    remainingBalance: payment.remainingBalance,
+                    paymentDate: payment.createdAt || new Date()
+                  });
+                  
+                  console.log('📧 First payment email notification sent to:', user.email);
+                }
+              }
+            } catch (emailError) {
+              console.error('❌ Error sending first payment email via callback:', emailError);
+            }
+
             await global.notificationService.emitPaymentSuccess(payment.userId, {
               _id: payment._id,
               amount: payment.amount,

@@ -87,6 +87,23 @@ exports.applyLaptop = async (req, res) => {
       await session.commitTransaction();
       console.log('✅ Application created and laptop status updated:', newApplication);
 
+      // Send application confirmation email immediately
+      try {
+        if (global.emailService) {
+          await global.emailService.sendApplicationConfirmationEmail(req.user.email, {
+            userName: `${req.user.firstName} ${req.user.lastName}`,
+            laptopModel: laptop.model,
+            laptopBrand: laptop.brand,
+            totalPrice: laptop.price
+          });
+          
+          console.log('📧 Application confirmation email sent to:', req.user.email);
+        }
+      } catch (emailError) {
+        console.error('❌ Error sending application confirmation email:', emailError);
+        // Don't fail the application process if email fails
+      }
+
       return res.status(201).json({
         success: true,
         message: 'Application submitted successfully',
