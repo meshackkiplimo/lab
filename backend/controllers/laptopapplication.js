@@ -24,7 +24,17 @@ exports.applyLaptop = async (req, res) => {
       });
     }
 
-    const { laptopId } = req.body;
+    const { laptopId, year } = req.body;
+
+    // Validate year field
+    if (!year) {
+      return res.status(400).json({ success: false, error: 'Year field is required' });
+    }
+
+    const validYears = ['1st Year', '2nd Year', '3rd Year', '4th Year'];
+    if (!validYears.includes(year)) {
+      return res.status(400).json({ success: false, error: 'Invalid year format' });
+    }
 
     // Validate laptopId format
     if (!laptopId || !laptopId.match(/^[0-9a-fA-F]{24}$/)) {
@@ -62,7 +72,8 @@ exports.applyLaptop = async (req, res) => {
       // Create new laptop application
       const [newApplication] = await LaptopApplication.create([{
         student: req.user.id,
-        laptop: laptopId
+        laptop: laptopId,
+        year: year || `${req.user.year}${req.user.year === 1 ? 'st' : req.user.year === 2 ? 'nd' : req.user.year === 3 ? 'rd' : 'th'} Year`
       }], { session });
 
       // Update laptop status to Out of Stock

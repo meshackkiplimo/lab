@@ -66,6 +66,10 @@ export default function Application() {
 
     const applicationData = {
       laptopId,
+      year: year === '1' ? '1st Year' :
+            year === '2' ? '2nd Year' :
+            year === '3' ? '3rd Year' :
+            year === '4' ? '4th Year' : year
     };
 
     fetch('http://localhost:5000/api/applications/apply', {
