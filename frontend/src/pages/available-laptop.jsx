@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom';
 
 export default function AvailableLaptops() {
   const [laptops, setLaptops] = useState([]);
+  const [filteredLaptops, setFilteredLaptops] = useState([]);
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -40,6 +42,7 @@ export default function AvailableLaptops() {
           throw new Error('Invalid response format');
         }
         setLaptops(data);
+        setFilteredLaptops(data);
         setLoading(false);
       })
       .catch((err) => {
@@ -57,6 +60,29 @@ export default function AvailableLaptops() {
         document.querySelector('div[style*="maxWidth: 1400"]')?.prepend(errorDiv);
       });
   }, [navigate]);
+
+  // Filter laptops based on search term
+  useEffect(() => {
+    if (!searchTerm.trim()) {
+      setFilteredLaptops(laptops);
+    } else {
+      const filtered = laptops.filter(laptop => {
+        const searchLower = searchTerm.toLowerCase();
+        const laptopName = `${laptop.brand} ${laptop.model}`.toLowerCase();
+        const brand = laptop.brand?.toLowerCase() || '';
+        const model = laptop.model?.toLowerCase() || '';
+        
+        return laptopName.includes(searchLower) ||
+               brand.includes(searchLower) ||
+               model.includes(searchLower);
+      });
+      setFilteredLaptops(filtered);
+    }
+  }, [searchTerm, laptops]);
+
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+  };
 
   const handleApply = (laptopId) => {
     navigate(`/applications/${laptopId}`);
@@ -110,12 +136,72 @@ export default function AvailableLaptops() {
           </h1>
         </div>
 
+        {/* Search Input */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          marginBottom: '2rem',
+          gap: '10px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '18px' }}>🔍</span>
+            <input
+              type="text"
+              placeholder="Search laptops by brand or model..."
+              value={searchTerm}
+              onChange={handleSearchChange}
+              style={{
+                width: '100%',
+                maxWidth: '400px',
+                padding: '12px 16px',
+                fontSize: '16px',
+                border: searchTerm ? '2px solid #3b82f6' : '2px solid #e5e7eb',
+                borderRadius: '8px',
+                outline: 'none',
+                transition: 'border-color 0.2s ease',
+              }}
+              onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
+              onBlur={(e) => e.target.style.borderColor = searchTerm ? '#3b82f6' : '#e5e7eb'}
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                style={{
+                  padding: '8px 12px',
+                  backgroundColor: '#f3f4f6',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  color: '#374151',
+                }}
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Results count */}
+        {searchTerm && (
+          <div style={{
+            textAlign: 'center',
+            marginBottom: '15px',
+            color: '#6b7280',
+            fontSize: '14px'
+          }}>
+            Found {filteredLaptops.length} laptop{filteredLaptops.length !== 1 ? 's' : ''}
+            {filteredLaptops.length > 0 && ` matching "${searchTerm}"`}
+          </div>
+        )}
+
         {/* Loader / No Data */}
         {loading ? (
           <p style={{ textAlign: 'center', fontSize: '1.1rem', color: '#475569' }}>
             ⏳ Loading laptops...
           </p>
-        ) : laptops.length === 0 ? (
+        ) : filteredLaptops.length === 0 ? (
           <div style={{
             background: '#fff7ed',
             color: '#b45309',
@@ -124,7 +210,7 @@ export default function AvailableLaptops() {
             borderRadius: '10px',
             textAlign: 'center'
           }}>
-            🚫 No laptops available at the moment.
+            {searchTerm ? `🚫 No laptops found matching "${searchTerm}"` : '🚫 No laptops available at the moment.'}
           </div>
         ) : (
           <div style={{
@@ -132,7 +218,7 @@ export default function AvailableLaptops() {
             gap: '1.2rem',
             gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))'
           }}>
-            {laptops.map((laptop, index) => (
+            {filteredLaptops.map((laptop, index) => (
               <div
                 key={index}
                 style={{
