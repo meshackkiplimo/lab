@@ -4,7 +4,9 @@ import { Apidomain } from '../utils/ApiDomain';
 
 const ManageInventory = () => {
   const [inventory, setInventory] = useState([]);
+  const [filteredInventory, setFilteredInventory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const fetchApplications = async () => {
     try {
@@ -74,6 +76,7 @@ const ManageInventory = () => {
       });
 
       setInventory(formatted);
+      setFilteredInventory(formatted);
       setLoading(false);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -91,6 +94,29 @@ const ManageInventory = () => {
     // Cleanup on unmount
     return () => clearInterval(refreshInterval);
   }, []);
+
+  // Filter inventory based on search term
+  useEffect(() => {
+    if (!searchTerm.trim()) {
+      setFilteredInventory(inventory);
+    } else {
+      const filtered = inventory.filter(item => {
+        const searchLower = searchTerm.toLowerCase();
+        const firstName = item.name.split(' ')[0]?.toLowerCase() || '';
+        const fullName = item.name.toLowerCase();
+        const laptopBrand = item.laptopBrand.toLowerCase();
+        
+        return firstName.includes(searchLower) ||
+               fullName.includes(searchLower) ||
+               laptopBrand.includes(searchLower);
+      });
+      setFilteredInventory(filtered);
+    }
+  }, [searchTerm, inventory]);
+
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+  };
 
   const updateStatus = async (id, status) => {
     try {
@@ -120,10 +146,10 @@ const ManageInventory = () => {
     }
   };
 
-  // Calculate totals
+  // Calculate totals based on filtered inventory
   let totalPaid = 0, totalExpected = 0, totalRemaining = 0;
 
-  inventory.forEach(item => {
+  filteredInventory.forEach(item => {
     const paid = Number(item.amountPaid || 0);
     const price = Number(item.laptopPrice || 0);
     const remaining = Math.max(0, price - paid);
@@ -180,6 +206,26 @@ const ManageInventory = () => {
     color: '#333',
   };
 
+  const searchInputStyle = {
+    width: '100%',
+    maxWidth: '400px',
+    padding: '12px 16px',
+    fontSize: '16px',
+    border: '2px solid #e5e7eb',
+    borderRadius: '8px',
+    outline: 'none',
+    transition: 'border-color 0.2s ease',
+    marginBottom: '20px',
+  };
+
+  const searchContainerStyle = {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: '20px',
+    gap: '10px',
+  };
+
   return (
     <div style={containerStyle}>
       <div className="stats-cards">
@@ -210,6 +256,55 @@ const ManageInventory = () => {
 
       <div style={cardStyle}>
         <h2 style={headingStyle}>📋 Applied Laptop Records</h2>
+        
+        {/* Search Input */}
+        <div style={searchContainerStyle}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '18px' }}>🔍</span>
+            <input
+              type="text"
+              placeholder="Search by student name or laptop brand..."
+              value={searchTerm}
+              onChange={handleSearchChange}
+              style={{
+                ...searchInputStyle,
+                borderColor: searchTerm ? '#3b82f6' : '#e5e7eb',
+              }}
+              onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
+              onBlur={(e) => e.target.style.borderColor = searchTerm ? '#3b82f6' : '#e5e7eb'}
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                style={{
+                  padding: '8px 12px',
+                  backgroundColor: '#f3f4f6',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  color: '#374151',
+                }}
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Results count */}
+        {searchTerm && (
+          <div style={{
+            textAlign: 'center',
+            marginBottom: '15px',
+            color: '#6b7280',
+            fontSize: '14px'
+          }}>
+            Found {filteredInventory.length} result{filteredInventory.length !== 1 ? 's' : ''}
+            {filteredInventory.length > 0 && ` for "${searchTerm}"`}
+          </div>
+        )}
+
         <div style={{ overflowX: 'auto' }}>
           <table style={tableStyle}>
             <thead>
@@ -228,14 +323,14 @@ const ManageInventory = () => {
               </tr>
             </thead>
             <tbody>
-              {inventory.length === 0 ? (
+              {filteredInventory.length === 0 ? (
                 <tr>
                   <td colSpan="11" style={{ ...tdStyle, textAlign: 'center', padding: '20px', color: '#888' }}>
-                    {loading ? 'Loading...' : 'No laptop applications found.'}
+                    {loading ? 'Loading...' : searchTerm ? `No results found for "${searchTerm}"` : 'No laptop applications found.'}
                   </td>
                 </tr>
               ) : (
-                inventory.map((item) => (
+                filteredInventory.map((item) => (
                   <tr key={item.id}>
                     <td style={tdStyle}>{item.name || 'N/A'}</td>
                     <td style={tdStyle}>{item.email}</td>
